@@ -1,0 +1,27 @@
+digraph {
+    edge[fontname = "tahoma"; fontsize = 8];
+    node[fontname = "tahoma bold"; fontsize = 10];
+    Calling_Start [shape = Mrecord; label = "{ Calling_Start | (+) Timer_A| (+) Timer_B}"];
+    Calling_Retransmit [shape = Mrecord; label = "{ Calling_Retransmit | (-) Timer_A| (+) Timer_A2}"];
+    Proceeding [shape = Mrecord; label = "{ Proceeding | (-) Timer_A| (-) Timer_A2| (-) Timer_B}"];
+    Completed [shape = Mrecord; label = "{ Completed | (-) Timer_A| (-) Timer_A2| (-) Timer_B| (+) Timer_D}"];
+    Terminated [shape = Mrecord; label = "{ Terminated }"; style = bold];
+    Calling_Start -> Proceeding [label = "SIP_1xx"];
+    Calling_Start -> Terminated [label = "SIP_2xx"];
+    Calling_Start -> Completed [label = "SIP_300_699"];
+    Calling_Start -> Terminated [label = "TransportError"];
+    Calling_Start -> Calling_Retransmit [label = "Timer_A"][style = dashed];
+    Calling_Retransmit -> Proceeding [label = "SIP_1xx"];
+    Calling_Retransmit -> Terminated [label = "SIP_2xx"];
+    Calling_Retransmit -> Completed [label = "SIP_300_699"];
+    Calling_Retransmit -> Terminated [label = "TransportError"];
+    Calling_Retransmit -> Calling_Retransmit [label = "Timer_A2"][style = dashed];
+    Calling_Retransmit -> Terminated [label = "Timer_B"][style = dashed];
+    Proceeding -> Proceeding [label = "SIP_1xx"];
+    Proceeding -> Terminated [label = "SIP_2xx"];
+    Proceeding -> Completed [label = "SIP_300_699"];
+    Proceeding -> Terminated [label = "TransportError"];
+    Completed -> Completed [label = "SIP_300_699"];
+    Completed -> Terminated [label = "TransportError"];
+    Completed -> Terminated [label = "Timer_D"][style = dashed];
+}

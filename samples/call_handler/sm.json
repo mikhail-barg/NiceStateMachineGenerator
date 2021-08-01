@@ -1,0 +1,64 @@
+{
+	"events": {
+		"telephony_session_terminated": {
+			"only_once": true
+		},
+		"asr_fully_finalized": {
+			"after_states": [ "awaiting_asr_fully_finalized" ],
+			"only_once": true
+		},
+		"script_final_state_reached": {},
+		"session_termination_request": {}
+	},
+	"timers": {
+		"asr_timeout": 10.0
+	},
+	
+	"start_state": "in_call",
+	"states": {
+		"in_call": {
+			"on_event": {
+				"telephony_session_terminated": "awaiting_asr_fully_finalized",
+				"session_termination_request": "session_termination_process",
+				"script_final_state_reached": "early_termination"
+			}
+		},
+		"session_termination_process": {
+			"on_enter": true, //sipCall.Stop()
+			"on_event": {
+				"telephony_session_terminated": "awaiting_asr_fully_finalized",
+				"session_termination_request": null,
+				"script_final_state_reached": "early_termination"
+			}			
+		},
+		"awaiting_asr_fully_finalized": {
+			"on_enter": true, //networkAudioTarget.SendFinalized();
+			"start_timers": [ "asr_timeout" ],
+			"on_timer": {
+				"asr_timeout": "asr_fully_finalized",
+			},
+			"on_event": {
+				"asr_fully_finalized": "asr_fully_finalized",
+				"session_termination_request": null,
+				"script_final_state_reached": "early_termination"
+			}
+		},
+		"asr_fully_finalized": {
+			"on_enter": true, //stateMachine.OnExternalEvent(DialogTerminated);
+			"stop_timers": [ "asr_timeout" ],
+			"on_event": {
+				"script_final_state_reached": "termination",
+				"asr_fully_finalized": null, //ignore late event
+				"session_termination_request": null //already terminating
+			}
+		},
+		"early_termination": {
+			"on_enter": true, //warn
+			"next_state": "termination"
+		},
+		"termination": {
+			"on_enter": true, //productionPlugin.WriteSessionToDb
+			"final": true
+		}
+	}
+}

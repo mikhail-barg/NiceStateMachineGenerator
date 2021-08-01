@@ -1,0 +1,20 @@
+digraph {
+    edge[fontname = "tahoma"; fontsize = 8];
+    node[fontname = "tahoma bold"; fontsize = 10];
+    in_call [shape = Mrecord; label = "{ in_call }"];
+    session_termination_process [shape = Mrecord; label = "{ session_termination_process }"];
+    awaiting_asr_fully_finalized [shape = Mrecord; label = "{ awaiting_asr_fully_finalized | (+) asr_timeout}"];
+    asr_fully_finalized [shape = Mrecord; label = "{ asr_fully_finalized | (-) asr_timeout}"];
+    early_termination [shape = Mrecord; label = "{ early_termination }"];
+    termination [shape = Mrecord; label = "{ termination }"; style = bold];
+    in_call -> awaiting_asr_fully_finalized [label = "telephony_session_terminated"];
+    in_call -> session_termination_process [label = "session_termination_request"];
+    in_call -> early_termination [label = "script_final_state_reached"];
+    session_termination_process -> awaiting_asr_fully_finalized [label = "telephony_session_terminated"];
+    session_termination_process -> early_termination [label = "script_final_state_reached"];
+    awaiting_asr_fully_finalized -> asr_fully_finalized [label = "asr_fully_finalized"];
+    awaiting_asr_fully_finalized -> early_termination [label = "script_final_state_reached"];
+    awaiting_asr_fully_finalized -> asr_fully_finalized [label = "asr_timeout"][style = dashed];
+    asr_fully_finalized -> termination [label = "script_final_state_reached"];
+    early_termination -> termination [style = bold];
+}

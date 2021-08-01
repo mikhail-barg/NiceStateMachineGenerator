@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31205.134
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NiceStateMachineGenerator", "NiceStateMachineGenerator\NiceStateMachineGenerator.csproj", "{0B61312B-CF87-4A96-BF6A-E6E2A85D4A88}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NiceStateMachineGenerator.App", "NiceStateMachineGenerator.App\NiceStateMachineGenerator.App.csproj", "{88DDADE9-D04A-4366-A645-8037A8F8828D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0B61312B-CF87-4A96-BF6A-E6E2A85D4A88}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0B61312B-CF87-4A96-BF6A-E6E2A85D4A88}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0B61312B-CF87-4A96-BF6A-E6E2A85D4A88}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0B61312B-CF87-4A96-BF6A-E6E2A85D4A88}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88DDADE9-D04A-4366-A645-8037A8F8828D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88DDADE9-D04A-4366-A645-8037A8F8828D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88DDADE9-D04A-4366-A645-8037A8F8828D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88DDADE9-D04A-4366-A645-8037A8F8828D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {20E3A8DE-E7DC-4A28-A265-8754B52C23F0}
+	EndGlobalSection
+EndGlobal

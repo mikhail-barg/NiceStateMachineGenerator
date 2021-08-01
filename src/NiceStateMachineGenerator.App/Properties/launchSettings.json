@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "call_handler": {
+      "commandName": "Project",
+      "commandLineArgs": "../../../../../samples/call_handler/sm.json"
+    },
+    "sip_invite": {
+      "commandName": "Project",
+      "commandLineArgs": "../../../../../samples/sip_invite/sm.json"
+    }
+  }
+}

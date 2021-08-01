@@ -1,0 +1,171 @@
+/*
+https://datatracker.ietf.org/doc/html/rfc3261#section-17.1.1.2
+
+                               |INVITE from TU
+             Timer A fires     |INVITE sent
+             Reset A,          V                      Timer B fires
+             INVITE sent +-----------+                or Transport Err.
+               +---------|           |---------------+inform TU
+               |         |  Calling  |               |
+               +-------->|           |-------------->|
+                         +-----------+ 2xx           |
+                            |  |       2xx to TU     |
+                            |  |1xx                  |
+    300-699 +---------------+  |1xx to TU            |
+   ACK sent |                  |                     |
+resp. to TU |  1xx             V                     |
+            |  1xx to TU  -----------+               |
+            |  +---------|           |               |
+            |  |         |Proceeding |-------------->|
+            |  +-------->|           | 2xx           |
+            |            +-----------+ 2xx to TU     |
+            |       300-699    |                     |
+            |       ACK sent,  |                     |
+            |       resp. to TU|                     |
+            |                  |                     |      NOTE:
+            |  300-699         V                     |
+            |  ACK sent  +-----------+Transport Err. |  transitions
+            |  +---------|           |Inform TU      |  labeled with
+            |  |         | Completed |-------------->|  the event
+            |  +-------->|           |               |  over the action
+            |            +-----------+               |  to take
+            |              ^   |                     |
+            |              |   | Timer D fires       |
+            +--------------+   | -                   |
+                               |                     |
+                               V                     |
+                         +-----------+               |
+                         |           |               |
+                         | Terminated|<--------------+
+                         |           |
+                         +-----------+
+
+                 Figure 5: INVITE client transaction
+*/
+
+{
+	"events": {
+		"SIP_1xx": {
+			"args": { "packet": "t_packet" }
+		},
+		"SIP_2xx": {
+			"args": { "packet": "t_packet" }
+		},		
+		"SIP_300_699": {
+			"args": { "packet": "t_packet" }
+		},
+		"TransportError": {}		
+	},
+	"timers": {
+		"Timer_A": 	0.5,	//T1
+		"Timer_A2": 2,		//2*T1
+		"Timer_B": 	32,		//64*T1
+		"Timer_D": 	32,		//with a value of at least 32 seconds for unreliable transports, and a value of zero seconds for reliable transports.
+	},
+	"start_state": "Calling_Start",
+	"states": {
+		"Calling_Start": {
+			"on_enter": true, //INVITE sent
+			"start_timers": [ "Timer_A", "Timer_B" ],
+			"on_timer": {
+				"Timer_A": "Calling_Retransmit",
+				"Timer_B": false, //should not happen
+			},
+			"on_event": {
+				"SIP_1xx": {
+					"on_traverse": true,	//Furthermore, the provisional response MUST be passed to the TU.
+					"state": "Proceeding",
+				},
+				"SIP_2xx": {
+					"on_traverse": true,	// and the response MUST be passed up to the TU.
+					"state": "Terminated",
+				},
+				"SIP_300_699": {
+					"on_traverse": true, //The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request				
+					"state": "Completed"
+				},
+				"TransportError": {
+					"on_traverse": true, //Inform TU
+					"state": "Terminated"
+				}
+			}
+		},
+		"Calling_Retransmit": {
+			"on_enter": true, //INVITE sent
+			"stop_timers": [ "Timer_A" ],
+			"start_timers": [ "Timer_A2" ],
+			"on_timer": {
+				"Timer_A2": "Calling_Retransmit",
+				"Timer_B": {
+					"on_traverse": true, //the client transaction SHOULD inform the TU that a timeout has occurred.
+					"state": "Terminated"
+				}
+			},
+			"on_event": {
+				"SIP_1xx": {
+					"on_traverse": true,	//Furthermore, the provisional response MUST be passed to the TU.
+					"state": "Proceeding",
+				},
+				"SIP_2xx": {
+					"on_traverse": true,	// and the response MUST be passed up to the TU.
+					"state": "Terminated",
+				},
+				"SIP_300_699": {
+					"on_traverse": true, //The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request				
+					"state": "Completed"
+				},
+				"TransportError": {
+					"on_traverse": true, //Inform TU
+					"state": "Terminated"
+				}
+			}
+		},
+		"Proceeding": {
+			"stop_timers": [ "Timer_A", "Timer_A2", "Timer_B" ],
+			"on_event": {
+				"SIP_1xx": {
+					"on_traverse": true,	//Any further provisional responses MUST be passed up to the TU while in the "Proceeding" state.
+					"state": "Proceeding",
+				},
+				"SIP_2xx": {
+					"on_traverse": true,	// and the response MUST be passed up to the TU.
+					"state": "Terminated",
+				},
+				"SIP_300_699": {
+					"on_traverse": true, //The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request				
+					"state": "Completed"
+				},
+				"TransportError": {
+					"on_traverse": true, //Inform TU
+					"state": "Terminated"
+				}
+			}
+		},
+		"Completed": {
+			"stop_timers": [ "Timer_A", "Timer_A2", "Timer_B" ],
+			"start_timers": [ "Timer_D" ],
+			"on_timer": {
+				"Timer_D": "Terminated"
+			},
+			"on_event": {
+				"SIP_1xx": false, //should not happen
+				"SIP_2xx": false, //should not happen
+				"SIP_300_699": {
+					"on_traverse": true, //Any retransmissions of the final response that are received while in the "Completed" state MUST cause the ACK to be re-passed to the transport layer for retransmission, 
+										 // but the newly received response  MUST NOT be passed up to the TU.
+					"state": "Completed"
+				},
+				"TransportError": {
+					"on_traverse": true, //Inform TU
+					"state": "Terminated"
+				}
+			}
+		},
+		"Terminated": {
+			"on_enter": true,	//The client transaction MUST be destroyed the instant it enters the "Terminated" state.
+			"final": true
+		}
+	}
+}
+
+

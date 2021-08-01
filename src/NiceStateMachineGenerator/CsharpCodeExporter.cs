@@ -45,9 +45,6 @@ namespace NiceStateMachineGenerator
         private readonly IndentedTextWriter m_writer;
         private readonly Settings m_settings;
 
-        private readonly Dictionary<StateDescr, string> m_stateToCallback = new Dictionary<StateDescr, string>();
-        private readonly Dictionary<EdgeDescr, string> m_edgeToCallback = new Dictionary<EdgeDescr, string>();
-
         private CsharpCodeExporter(StateMachineDescr stateMachine, IndentedTextWriter writer, Settings settings)
         {
             this.m_stateMachine = stateMachine;
@@ -153,7 +150,7 @@ namespace NiceStateMachineGenerator
                             this.m_writer.WriteLine($"case {STATES_ENUM_NAME}.{state.Name}:");
                             ++this.m_writer.Indent;
                             {
-                                WriteEdgeTraverse(edge, isEvent: true);
+                                WriteEdgeTraverse(state, edge);
                                 this.m_writer.WriteLine("break;");
                             }
                             this.m_writer.WriteLine();
@@ -198,7 +195,7 @@ namespace NiceStateMachineGenerator
                                     this.m_writer.WriteLine("{");
                                     {
                                         ++this.m_writer.Indent;
-                                        WriteEdgeTraverse(edge, isEvent: false);
+                                        WriteEdgeTraverse(state, edge);
                                         --this.m_writer.Indent;
                                     }
                                     this.m_writer.WriteLine("}");
@@ -233,13 +230,13 @@ namespace NiceStateMachineGenerator
             this.m_writer.WriteLine();
         }
 
-        private void WriteEdgeTraverse(EdgeDescr edge, bool isEvent)
+        private void WriteEdgeTraverse(StateDescr state, EdgeDescr edge)
         {
-            if (edge.NeedOnTraverseEvent)
+            foreach (EdgeTraverseCallbackType callbackType in edge.OnTraverseEventTypes)
             {
-                string callbackName = this.m_edgeToCallback[edge];
+                string callbackName = ComposeEdgeTraveseCallback(callbackType, state, edge, out bool needArgs);
                 this.m_writer.Write($"{callbackName}?.Invoke(");
-                if (isEvent)
+                if (needArgs)
                 {
                     EventDescr @event = this.m_stateMachine.Events[edge.InvokerName];
                     for (int i = 0; i < @event.Args.Count; ++i)
@@ -289,7 +286,7 @@ namespace NiceStateMachineGenerator
 
             if (state.NeedOnEnterEvent)
             {
-                string callbackName = this.m_stateToCallback[state];
+                string callbackName = ComposeStateEnterCallback(state);
                 this.m_writer.WriteLine($"{callbackName}?.Invoke();");
             }
         }
@@ -376,31 +373,111 @@ namespace NiceStateMachineGenerator
             this.m_writer.WriteLine("");
         }
 
+        private static string ComposeEdgeTraveseCallback(EdgeTraverseCallbackType callbackType, StateDescr source, EdgeDescr edge, out bool eventNeedArgs)
+        {
+            StringBuilder builder = new StringBuilder();
+            builder.Append(edge.IsTimer ? "OnTimerTraverse__" : "OnEventTraverse__");
+            switch (callbackType)
+            {
+            case EdgeTraverseCallbackType.full:
+                builder.Append(source.Name);
+                builder.Append("__");
+                builder.Append(edge.InvokerName);
+                builder.Append("__");
+                builder.Append(edge.TargetState);
+                eventNeedArgs = !edge.IsTimer;
+                break;
+
+            case EdgeTraverseCallbackType.event_only:
+                builder.Append(edge.InvokerName);
+                eventNeedArgs = !edge.IsTimer;
+                break;
+
+            case EdgeTraverseCallbackType.event_and_target:
+                builder.Append(edge.InvokerName);
+                builder.Append("__");
+                builder.Append(edge.TargetState);
+                eventNeedArgs = !edge.IsTimer;
+                break;
+
+            case EdgeTraverseCallbackType.source_and_event:
+                builder.Append(source.Name);
+                builder.Append("__");
+                builder.Append(edge.InvokerName);
+                eventNeedArgs = !edge.IsTimer;
+                break;
+
+            case EdgeTraverseCallbackType.source_and_target:
+                builder.Append(source.Name);
+                builder.Append("__");
+                builder.Append(edge.TargetState);
+                eventNeedArgs = false;
+                break;
+
+            case EdgeTraverseCallbackType.source_only:
+                builder.Append(source.Name);
+                eventNeedArgs = false;
+                break;
+
+            case EdgeTraverseCallbackType.target_only:
+                builder.Append(edge.TargetState);
+                eventNeedArgs = false;
+                break;
+
+            default:
+                throw new ApplicationException("Unexpected type " + callbackType);
+            }
+
+            return builder.ToString();
+        }
+
+        private static string ComposeStateEnterCallback(StateDescr state)
+        {
+            return $"OnStateEnter__{state.Name}";
+        }
+
+        private void WriteCommentIfSpecified(string? comment)
+        {
+            if (comment != null)
+            {
+                this.m_writer.Write("/*");
+                this.m_writer.Write(comment); //could be an injection )
+                this.m_writer.WriteLine("*/");
+            }
+        }
+
         private void WriteCallbackEvents()
         {
             foreach (StateDescr state in this.m_stateMachine.States.Values)
             {
                 if (state.NeedOnEnterEvent)
                 {
-                    string callbackName = $"OnStateEnter__{state.Name}";
-                    this.m_stateToCallback.Add(state, callbackName);
+                    string callbackName = ComposeStateEnterCallback(state);
+                    WriteCommentIfSpecified(state.OnEnterEventComment);
                     this.m_writer.WriteLine($"public event Action {callbackName};");
                 }
             }
             this.m_writer.WriteLine();
 
+            HashSet<string> declaredEventCallbacks = new HashSet<string>();
             foreach (StateDescr state in this.m_stateMachine.States.Values)
             {
                 if (state.EventEdges != null)
                 {
                     foreach (EdgeDescr edge in state.EventEdges.Values)
                     {
-                        if (edge.NeedOnTraverseEvent)
+                        foreach (EdgeTraverseCallbackType callbackType in edge.OnTraverseEventTypes)
                         {
-                            string callbackName = $"OnEventTraverse__{state.Name}__{edge.InvokerName}__{edge.TargetState}";
-                            this.m_edgeToCallback.Add(edge, callbackName);
+                            string callbackName = ComposeEdgeTraveseCallback(callbackType, state, edge, out bool needArgs);
+                            if (!declaredEventCallbacks.Add(callbackName))
+                            {
+                                continue;
+                            }
+
+                            WriteCommentIfSpecified(edge.TraverseEventComment);
+                            
                             EventDescr @event = this.m_stateMachine.Events[edge.InvokerName];
-                            if (@event.Args.Count == 0)
+                            if (!needArgs || @event.Args.Count == 0)
                             {
                                 this.m_writer.WriteLine($"public event Action {callbackName};");
                             }
@@ -425,10 +502,14 @@ namespace NiceStateMachineGenerator
                 {
                     foreach (EdgeDescr edge in state.TimerEdges.Values)
                     {
-                        if (edge.NeedOnTraverseEvent)
+                        foreach (EdgeTraverseCallbackType callbackType in edge.OnTraverseEventTypes)
                         {
-                            string callbackName = $"OnTimerTraverse__{state.Name}__{edge.InvokerName}__{edge.TargetState}";
-                            this.m_edgeToCallback.Add(edge, callbackName);
+                            string callbackName = ComposeEdgeTraveseCallback(callbackType, state, edge, out _);
+                            if (!declaredEventCallbacks.Add(callbackName))
+                            {
+                                continue;
+                            }
+                            WriteCommentIfSpecified(edge.TraverseEventComment);
                             this.m_writer.WriteLine($"public event Action {callbackName};");
                         }
                     }

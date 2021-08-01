@@ -60,62 +60,73 @@ resp. to TU |  1xx             V                     |
 		"Timer_A": 	0.5,	//T1
 		"Timer_A2": 2,		//2*T1
 		"Timer_B": 	32,		//64*T1
-		"Timer_D": 	32,		//with a value of at least 32 seconds for unreliable transports, and a value of zero seconds for reliable transports.
+		"Timer_D": 	32		//with a value of at least 32 seconds for unreliable transports, and a value of zero seconds for reliable transports.
 	},
 	"start_state": "Calling_Start",
 	"states": {
 		"Calling_Start": {
-			"on_enter": true, //INVITE sent
+			"on_enter_comment": "INVITE sent",
+			"on_enter": true,
 			"start_timers": [ "Timer_A", "Timer_B" ],
 			"on_timer": {
 				"Timer_A": "Calling_Retransmit",
-				"Timer_B": false, //should not happen
+				"Timer_B": false //should not happen
 			},
 			"on_event": {
 				"SIP_1xx": {
-					"on_traverse": true,	//Furthermore, the provisional response MUST be passed to the TU.
-					"state": "Proceeding",
+					"on_traverse_comment": "Furthermore, the provisional response MUST be passed to the TU",
+					"on_traverse": "event_only",
+					"state": "Proceeding"
 				},
 				"SIP_2xx": {
-					"on_traverse": true,	// and the response MUST be passed up to the TU.
-					"state": "Terminated",
+					"on_traverse_comment": "and the response MUST be passed up to the TU",
+					"on_traverse": "event_only",
+					"state": "Terminated"
 				},
 				"SIP_300_699": {
-					"on_traverse": true, //The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request				
+					"on_traverse_comment": "The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request",
+					"on_traverse": "event_only",
 					"state": "Completed"
 				},
 				"TransportError": {
-					"on_traverse": true, //Inform TU
+					"on_traverse_comment": "Inform TU",
+					"on_traverse": "event_only",
 					"state": "Terminated"
 				}
 			}
 		},
 		"Calling_Retransmit": {
-			"on_enter": true, //INVITE sent
+			"on_enter_comment": "INVITE sent",
+			"on_enter": true,
 			"stop_timers": [ "Timer_A" ],
 			"start_timers": [ "Timer_A2" ],
 			"on_timer": {
 				"Timer_A2": "Calling_Retransmit",
 				"Timer_B": {
-					"on_traverse": true, //the client transaction SHOULD inform the TU that a timeout has occurred.
+					"on_traverse_comment": "the client transaction SHOULD inform the TU that a timeout has occurred.",
+					"on_traverse": "event_only",
 					"state": "Terminated"
 				}
 			},
 			"on_event": {
 				"SIP_1xx": {
-					"on_traverse": true,	//Furthermore, the provisional response MUST be passed to the TU.
-					"state": "Proceeding",
+					"on_traverse_comment": "Furthermore, the provisional response MUST be passed to the TU",
+					"on_traverse": "event_only",
+					"state": "Proceeding"
 				},
 				"SIP_2xx": {
-					"on_traverse": true,	// and the response MUST be passed up to the TU.
-					"state": "Terminated",
+					"on_traverse_comment": "and the response MUST be passed up to the TU",
+					"on_traverse": "event_only",
+					"state": "Terminated"
 				},
 				"SIP_300_699": {
-					"on_traverse": true, //The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request				
+					"on_traverse_comment": "The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request",
+					"on_traverse": "event_only",
 					"state": "Completed"
 				},
 				"TransportError": {
-					"on_traverse": true, //Inform TU
+					"on_traverse_comment": "Inform TU",
+					"on_traverse": "event_only",
 					"state": "Terminated"
 				}
 			}
@@ -124,19 +135,23 @@ resp. to TU |  1xx             V                     |
 			"stop_timers": [ "Timer_A", "Timer_A2", "Timer_B" ],
 			"on_event": {
 				"SIP_1xx": {
-					"on_traverse": true,	//Any further provisional responses MUST be passed up to the TU while in the "Proceeding" state.
-					"state": "Proceeding",
+					"on_traverse_comment": "Any further provisional responses MUST be passed up to the TU while in the Proceeding state.",
+					"on_traverse": "event_only",
+					"state": "Proceeding"
 				},
 				"SIP_2xx": {
-					"on_traverse": true,	// and the response MUST be passed up to the TU.
-					"state": "Terminated",
+					"on_traverse_comment": "and the response MUST be passed up to the TU",
+					"on_traverse": "event_only",
+					"state": "Terminated"
 				},
 				"SIP_300_699": {
-					"on_traverse": true, //The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request				
+					"on_traverse_comment": "The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request",
+					"on_traverse": "event_only",
 					"state": "Completed"
 				},
 				"TransportError": {
-					"on_traverse": true, //Inform TU
+					"on_traverse_comment": "Inform TU",
+					"on_traverse": "event_only",
 					"state": "Terminated"
 				}
 			}
@@ -151,18 +166,20 @@ resp. to TU |  1xx             V                     |
 				"SIP_1xx": false, //should not happen
 				"SIP_2xx": false, //should not happen
 				"SIP_300_699": {
-					"on_traverse": true, //Any retransmissions of the final response that are received while in the "Completed" state MUST cause the ACK to be re-passed to the transport layer for retransmission, 
-										 // but the newly received response  MUST NOT be passed up to the TU.
+					"on_traverse_comment": "Any retransmissions of the final response that are received while in the 'Completed' state MUST cause the ACK to be re-passed to the transport layer for retransmission, but the newly received response MUST NOT be passed up to the TU.",
+					"on_traverse": "source_and_event",
 					"state": "Completed"
 				},
 				"TransportError": {
-					"on_traverse": true, //Inform TU
+					"on_traverse_comment": "Inform TU",
+					"on_traverse": "event_only",
 					"state": "Terminated"
 				}
 			}
 		},
 		"Terminated": {
-			"on_enter": true,	//The client transaction MUST be destroyed the instant it enters the "Terminated" state.
+			"on_enter_comment": "The client transaction MUST be destroyed the instant it enters the 'Terminated' state",
+			"on_enter": true,
 			"final": true
 		}
 	}

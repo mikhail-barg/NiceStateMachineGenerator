@@ -24,18 +24,20 @@
 			}
 		},
 		"session_termination_process": {
-			"on_enter": true, //sipCall.Stop()
+			"on_enter_comment": "sipCall.Stop()",
+			"on_enter": true,
 			"on_event": {
 				"telephony_session_terminated": "awaiting_asr_fully_finalized",
 				"session_termination_request": null,
 				"script_final_state_reached": "early_termination"
-			}			
+			}
 		},
 		"awaiting_asr_fully_finalized": {
-			"on_enter": true, //networkAudioTarget.SendFinalized();
+			"on_enter_comment": "asr.SendFinalized()",
+			"on_enter": true,
 			"start_timers": [ "asr_timeout" ],
 			"on_timer": {
-				"asr_timeout": "asr_fully_finalized",
+				"asr_timeout": "asr_fully_finalized"
 			},
 			"on_event": {
 				"asr_fully_finalized": "asr_fully_finalized",
@@ -44,7 +46,8 @@
 			}
 		},
 		"asr_fully_finalized": {
-			"on_enter": true, //stateMachine.OnExternalEvent(DialogTerminated);
+			"on_enter_comment": "stateMachine.OnExternalEvent(DialogTerminated)",
+			"on_enter": true,
 			"stop_timers": [ "asr_timeout" ],
 			"on_event": {
 				"script_final_state_reached": "termination",
@@ -53,11 +56,13 @@
 			}
 		},
 		"early_termination": {
-			"on_enter": true, //warn
+			"on_enter_comment": "warn",
+			"on_enter": true,
 			"next_state": "termination"
 		},
 		"termination": {
-			"on_enter": true, //productionPlugin.WriteSessionToDb
+			"on_enter_comment": "productionPlugin.WriteSessionToDb",
+			"on_enter": true,
 			"final": true
 		}
 	}

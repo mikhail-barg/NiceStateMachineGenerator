@@ -131,9 +131,15 @@ namespace NiceStateMachineGenerator
             ParseTimersArray(stateDescr.StopTimers, json, "stop_timers", handledTokens);
 
             stateDescr.NeedOnEnterEvent = ParserHelper.GetJBoolWithDefault(json, "on_enter", false, handledTokens);
+            stateDescr.OnEnterEventComment = ParserHelper.GetJString(json, "on_enter_comment", handledTokens, out JToken? commentToken, required: false);
 
-            stateDescr.TimerEdges = ParseEdges(json, "on_timer", handledTokens, this.m_timerNames);
-            stateDescr.EventEdges = ParseEdges(json, "on_event", handledTokens, this.m_eventNames);
+            if (stateDescr.OnEnterEventComment != null && !stateDescr.NeedOnEnterEvent)
+            {
+                throw new ParseValidationException(commentToken, "On enter comment is specified, but no event required");
+            }
+
+            stateDescr.TimerEdges = ParseEdges(json, "on_timer", handledTokens, this.m_timerNames, isTimer: true);
+            stateDescr.EventEdges = ParseEdges(json, "on_event", handledTokens, this.m_eventNames, isTimer: false);
 
             string? nextStateName = ParserHelper.GetJString(json, "next_state", handledTokens, out JToken? nextStateToken, required : false);
             if (nextStateName != null)
@@ -178,7 +184,7 @@ namespace NiceStateMachineGenerator
             ParserHelper.CheckAllTokensHandled(json, handledTokens);
         }
 
-        private Dictionary<string, EdgeDescr>? ParseEdges(JObject json, string tokenName, HashSet<string> handledTokens, HashSet<string> knownNames)
+        private Dictionary<string, EdgeDescr>? ParseEdges(JObject json, string tokenName, HashSet<string> handledTokens, HashSet<string> knownNames, bool isTimer)
         {
             JObject? container = ParserHelper.GetJObject(json, tokenName, handledTokens, required: false);
             if (container == null)
@@ -197,7 +203,7 @@ namespace NiceStateMachineGenerator
                     throw new ParseValidationException(property, $"Duplicated edge name '{property.Name}' in {tokenName}");
                 };
 
-                EdgeDescr edge = new EdgeDescr(property.Name);
+                EdgeDescr edge = new EdgeDescr(property.Name, isTimer: isTimer);
                 switch (property.Value.Type)
                 {
                 case JTokenType.Null:
@@ -244,14 +250,62 @@ namespace NiceStateMachineGenerator
             };
             edge.TargetState = targetStateName;
 
-            edge.NeedOnTraverseEvent = ParserHelper.GetJBoolWithDefault(description, "on_traverse", false, handledTokens);
+            JToken? traverseEventsToken = ParserHelper.GetJToken(description, "on_traverse", handledTokens, required: false);
+            ParseOnTraverseEvents(edge.OnTraverseEventTypes, traverseEventsToken);
 
-            if (edge.TargetState == null && edge.NeedOnTraverseEvent)
+            if (edge.TargetState == null && edge.OnTraverseEventTypes.Count > 0)
             {
                 throw new ParseValidationException(description, "Edge has no next_state (null), but requires on_traverse event. This is not supported");
             };
 
+            edge.TraverseEventComment = ParserHelper.GetJString(description, "on_traverse_comment", handledTokens, out JToken? commentToken, required: false);
+
+            if (edge.TraverseEventComment != null && edge.OnTraverseEventTypes.Count == 0)
+            {
+                throw new ParseValidationException(commentToken, "On traverse comment is specified, but no event required");
+            };
+
             ParserHelper.CheckAllTokensHandled(description, handledTokens);
+        }
+
+        private void ParseOnTraverseEvents(HashSet<EdgeTraverseCallbackType> onTraverseEventTypes, JToken? traverseEventsToken)
+        {
+            if (traverseEventsToken == null)
+            {
+                return;
+            }
+            switch (traverseEventsToken.Type)
+            {
+            case JTokenType.Null:
+                return;
+            case JTokenType.String:
+                ParseOnTraverseEventSingleValue(onTraverseEventTypes, traverseEventsToken);
+                return;
+            case JTokenType.Array:
+                {
+                    JArray array = (JArray)traverseEventsToken;
+                    foreach (JToken element in array)
+                    {
+                        ParseOnTraverseEventSingleValue(onTraverseEventTypes, element);
+                    };
+                }
+                return;
+            default:
+                throw new ParseValidationException(traverseEventsToken, "On_traverse should be either String or string Array, or Null. Specified: " + traverseEventsToken.Type);
+            }
+        }
+
+        private void ParseOnTraverseEventSingleValue(HashSet<EdgeTraverseCallbackType> onTraverseEventTypes, JToken element)
+        {
+            string eventType = ParserHelper.CheckAndConvertToString(element, "event type");
+            if (!Enum.TryParse(eventType, out EdgeTraverseCallbackType value))
+            {
+                throw new ParseValidationException(element, $"Failed to convert value '{eventType}' to on_traverse type. Possible values are {String.Join(", ", Enum.GetNames<EdgeTraverseCallbackType>())}");
+            };
+            if (!onTraverseEventTypes.Add(value))
+            {
+                throw new ParseValidationException(element, $"Duplicate on_traverse value '{eventType}'");
+            };
         }
 
         private void ParseEvents(JObject eventsObject)

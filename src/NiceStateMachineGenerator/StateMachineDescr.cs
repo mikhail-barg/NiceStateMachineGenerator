@@ -6,6 +6,31 @@ using System.Threading.Tasks;
 
 namespace NiceStateMachineGenerator
 {
+    [Flags]
+    public enum EdgeTraverseCallbackType
+    {
+        //FromState__EventOrTimer__ToState(args)
+        full,
+
+        //EventOrTimer(args)
+        event_only,
+
+        //EventOrTimer__ToState(args)
+        event_and_target,
+
+        //FromState__EventOrTimer(args)
+        source_and_event,
+
+        //FromState__ToState
+        source_and_target,
+
+        //FromState
+        source_only,
+
+        //ToState
+        target_only,
+    }
+
     public sealed class EventDescr
     {
         public readonly string Name;
@@ -21,14 +46,17 @@ namespace NiceStateMachineGenerator
 
     public sealed class EdgeDescr
     {
+        public readonly bool IsTimer;
         public readonly string InvokerName;
 
-        public bool NeedOnTraverseEvent { get; set; }
+        public readonly HashSet<EdgeTraverseCallbackType> OnTraverseEventTypes = new HashSet<EdgeTraverseCallbackType>();
+        public string? TraverseEventComment { get; set; }
         public string? TargetState { get; set; }
         public bool IsFailure { get; set; }
 
-        public EdgeDescr(string invokerName)
+        public EdgeDescr(string invokerName, bool isTimer)
         {
+            this.IsTimer = isTimer;
             this.InvokerName = invokerName;
         }
     }
@@ -37,6 +65,7 @@ namespace NiceStateMachineGenerator
     {
         public readonly string Name;
         
+        public string? OnEnterEventComment { get; set; }
         public bool NeedOnEnterEvent { get; set; }
         public readonly HashSet<string> StartTimers = new HashSet<string>();
         public readonly HashSet<string> StopTimers = new HashSet<string>();

@@ -30,25 +30,25 @@ namespace Generated
             Terminated,
         }
         
+        /*INVITE sent*/
         public event Action OnStateEnter__Calling_Start;
+        /*INVITE sent*/
         public event Action OnStateEnter__Calling_Retransmit;
+        /*The client transaction MUST be destroyed the instant it enters the 'Terminated' state*/
         public event Action OnStateEnter__Terminated;
         
-        public event Action<t_packet> OnEventTraverse__Calling_Start__SIP_1xx__Proceeding; 
-        public event Action<t_packet> OnEventTraverse__Calling_Start__SIP_2xx__Terminated; 
-        public event Action<t_packet> OnEventTraverse__Calling_Start__SIP_300_699__Completed; 
-        public event Action OnEventTraverse__Calling_Start__TransportError__Terminated;
-        public event Action<t_packet> OnEventTraverse__Calling_Retransmit__SIP_1xx__Proceeding; 
-        public event Action<t_packet> OnEventTraverse__Calling_Retransmit__SIP_2xx__Terminated; 
-        public event Action<t_packet> OnEventTraverse__Calling_Retransmit__SIP_300_699__Completed; 
-        public event Action OnEventTraverse__Calling_Retransmit__TransportError__Terminated;
-        public event Action OnTimerTraverse__Calling_Retransmit__Timer_B__Terminated;
-        public event Action<t_packet> OnEventTraverse__Proceeding__SIP_1xx__Proceeding; 
-        public event Action<t_packet> OnEventTraverse__Proceeding__SIP_2xx__Terminated; 
-        public event Action<t_packet> OnEventTraverse__Proceeding__SIP_300_699__Completed; 
-        public event Action OnEventTraverse__Proceeding__TransportError__Terminated;
-        public event Action<t_packet> OnEventTraverse__Completed__SIP_300_699__Completed; 
-        public event Action OnEventTraverse__Completed__TransportError__Terminated;
+        /*Furthermore, the provisional response MUST be passed to the TU*/
+        public event Action<t_packet> OnEventTraverse__SIP_1xx; 
+        /*and the response MUST be passed up to the TU*/
+        public event Action<t_packet> OnEventTraverse__SIP_2xx; 
+        /*The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request*/
+        public event Action<t_packet> OnEventTraverse__SIP_300_699; 
+        /*Inform TU*/
+        public event Action OnEventTraverse__TransportError;
+        /*the client transaction SHOULD inform the TU that a timeout has occurred.*/
+        public event Action OnTimerTraverse__Timer_B;
+        /*Any retransmissions of the final response that are received while in the 'Completed' state MUST cause the ACK to be re-passed to the transport layer for retransmission, but the newly received response MUST NOT be passed up to the TU.*/
+        public event Action<t_packet> OnEventTraverse__Completed__SIP_300_699; 
         
         private bool m_isDisposed = false;
         private readonly ITimer Timer_A;
@@ -125,7 +125,7 @@ namespace Generated
                 }
                 else if (timer == this.Timer_B)
                 {
-                    OnTimerTraverse__Calling_Retransmit__Timer_B__Terminated?.Invoke();
+                    OnTimerTraverse__Timer_B?.Invoke();
                     SetState(States.Terminated);
                 }
                 else 
@@ -156,17 +156,17 @@ namespace Generated
             switch (this.CurrentState)
             {
             case States.Calling_Start:
-                OnEventTraverse__Calling_Start__SIP_1xx__Proceeding?.Invoke(packet);
+                OnEventTraverse__SIP_1xx?.Invoke(packet);
                 SetState(States.Proceeding);
                 break;
                 
             case States.Calling_Retransmit:
-                OnEventTraverse__Calling_Retransmit__SIP_1xx__Proceeding?.Invoke(packet);
+                OnEventTraverse__SIP_1xx?.Invoke(packet);
                 SetState(States.Proceeding);
                 break;
                 
             case States.Proceeding:
-                OnEventTraverse__Proceeding__SIP_1xx__Proceeding?.Invoke(packet);
+                OnEventTraverse__SIP_1xx?.Invoke(packet);
                 SetState(States.Proceeding);
                 break;
                 
@@ -184,17 +184,17 @@ namespace Generated
             switch (this.CurrentState)
             {
             case States.Calling_Start:
-                OnEventTraverse__Calling_Start__SIP_2xx__Terminated?.Invoke(packet);
+                OnEventTraverse__SIP_2xx?.Invoke(packet);
                 SetState(States.Terminated);
                 break;
                 
             case States.Calling_Retransmit:
-                OnEventTraverse__Calling_Retransmit__SIP_2xx__Terminated?.Invoke(packet);
+                OnEventTraverse__SIP_2xx?.Invoke(packet);
                 SetState(States.Terminated);
                 break;
                 
             case States.Proceeding:
-                OnEventTraverse__Proceeding__SIP_2xx__Terminated?.Invoke(packet);
+                OnEventTraverse__SIP_2xx?.Invoke(packet);
                 SetState(States.Terminated);
                 break;
                 
@@ -212,22 +212,22 @@ namespace Generated
             switch (this.CurrentState)
             {
             case States.Calling_Start:
-                OnEventTraverse__Calling_Start__SIP_300_699__Completed?.Invoke(packet);
+                OnEventTraverse__SIP_300_699?.Invoke(packet);
                 SetState(States.Completed);
                 break;
                 
             case States.Calling_Retransmit:
-                OnEventTraverse__Calling_Retransmit__SIP_300_699__Completed?.Invoke(packet);
+                OnEventTraverse__SIP_300_699?.Invoke(packet);
                 SetState(States.Completed);
                 break;
                 
             case States.Proceeding:
-                OnEventTraverse__Proceeding__SIP_300_699__Completed?.Invoke(packet);
+                OnEventTraverse__SIP_300_699?.Invoke(packet);
                 SetState(States.Completed);
                 break;
                 
             case States.Completed:
-                OnEventTraverse__Completed__SIP_300_699__Completed?.Invoke(packet);
+                OnEventTraverse__Completed__SIP_300_699?.Invoke(packet);
                 SetState(States.Completed);
                 break;
                 
@@ -242,22 +242,22 @@ namespace Generated
             switch (this.CurrentState)
             {
             case States.Calling_Start:
-                OnEventTraverse__Calling_Start__TransportError__Terminated?.Invoke();
+                OnEventTraverse__TransportError?.Invoke();
                 SetState(States.Terminated);
                 break;
                 
             case States.Calling_Retransmit:
-                OnEventTraverse__Calling_Retransmit__TransportError__Terminated?.Invoke();
+                OnEventTraverse__TransportError?.Invoke();
                 SetState(States.Terminated);
                 break;
                 
             case States.Proceeding:
-                OnEventTraverse__Proceeding__TransportError__Terminated?.Invoke();
+                OnEventTraverse__TransportError?.Invoke();
                 SetState(States.Terminated);
                 break;
                 
             case States.Completed:
-                OnEventTraverse__Completed__TransportError__Terminated?.Invoke();
+                OnEventTraverse__TransportError?.Invoke();
                 SetState(States.Terminated);
                 break;
                 

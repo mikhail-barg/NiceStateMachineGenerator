@@ -6,6 +6,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="..\..\samples\call_handler\sm.json" Link="samples\call_handler.json" />
+    <None Include="..\..\samples\sip_invite\sm.json" Link="samples\sip_invite.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\NiceStateMachineGenerator\NiceStateMachineGenerator.csproj" />
   </ItemGroup>
 

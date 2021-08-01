@@ -31,10 +31,15 @@ namespace Generated
             termination,
         }
         
+        /*sipCall.Stop()*/
         public event Action OnStateEnter__session_termination_process;
+        /*asr.SendFinalized()*/
         public event Action OnStateEnter__awaiting_asr_fully_finalized;
+        /*stateMachine.OnExternalEvent(DialogTerminated)*/
         public event Action OnStateEnter__asr_fully_finalized;
+        /*warn*/
         public event Action OnStateEnter__early_termination;
+        /*productionPlugin.WriteSessionToDb*/
         public event Action OnStateEnter__termination;
         
         

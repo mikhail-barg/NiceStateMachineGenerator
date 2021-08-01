@@ -11,8 +11,7 @@ namespace NiceStateMachineGenerator.App
 
             StateMachineDescr stateMachine = Parser.ParseFile(fileName);
 
-            ExportAndConvertToImage(stateMachine, fileName + ".dot", showEvents: false);
-            //ExportAndConvertToImage(stateMachine, fileName + ".events.dot", showEvents: true);
+            ExportAndConvertToImage(stateMachine, fileName + ".dot", new GraphwizExporter.Settings());
 
             Validator.Validate(stateMachine);
 
@@ -25,9 +24,9 @@ namespace NiceStateMachineGenerator.App
             gw.WaitForExit();
         }
 
-        private static void ExportAndConvertToImage(StateMachineDescr stateMachine, string dotFileName, bool showEvents)
+        private static void ExportAndConvertToImage(StateMachineDescr stateMachine, string dotFileName, GraphwizExporter.Settings settings)
         {
-            GraphwizExporter.Export(stateMachine, dotFileName, showEvents: showEvents);
+            GraphwizExporter.Export(stateMachine, dotFileName, settings);
             RunGraphwiz(dotFileName);
         }
     }

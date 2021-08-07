@@ -16,6 +16,7 @@ namespace NiceStateMachineGenerator.App
             Validator.Validate(stateMachine);
 
             CsharpCodeExporter.Export(stateMachine, fileName + ".cs", new CsharpCodeExporter.Settings());
+            CppCodeExporter.Export(stateMachine, fileName + ".h", new CppCodeExporter.Settings());
         }
 
         private static void RunGraphwiz(string dotFileName)

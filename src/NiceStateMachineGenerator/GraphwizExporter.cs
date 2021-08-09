@@ -58,10 +58,14 @@ namespace NiceStateMachineGenerator
                         writer.Write("| (-) ");
                         writer.Write(timer);
                     }
-                    foreach (string timer in state.StartTimers)
+                    foreach (TimerStartDescr timerStart in state.StartTimers.Values)
                     {
                         writer.Write("| (+) ");
-                        writer.Write(timer);
+                        writer.Write(timerStart.TimerName);
+                        if (timerStart.Modify != null)
+                        {
+                            writer.Write("*");
+                        }
                     }
                     if (settings.ShowStateEnterEvents && state.NeedOnEnterEvent)
                     {

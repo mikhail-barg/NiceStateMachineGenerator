@@ -45,15 +45,21 @@ namespace NiceStateMachineGenerator
         private readonly StateMachineDescr m_stateMachine;
         private readonly IndentedTextWriter m_writer; 
         private readonly Settings m_settings;
+        private readonly HashSet<string> m_modifiedTimers;
 
         private CppCodeExporter(StateMachineDescr stateMachine, IndentedTextWriter headerWriter, Settings settings)
         {
             this.m_stateMachine = stateMachine;
             this.m_writer = headerWriter;
             this.m_settings = settings;
+
+
+            this.m_modifiedTimers = this.m_stateMachine.States.Values
+                .SelectMany(s => s.StartTimers.Values)
+                .Where(t => t.Modify != null)
+                .Select(t => t.TimerName)
+                .ToHashSet();
         }
-
-
 
         private void ExportInternal()
         {
@@ -305,9 +311,37 @@ namespace NiceStateMachineGenerator
             {
                 this.m_writer.WriteLine($"{timer}->Stop();");
             }
-            foreach (string timer in state.StartTimers)
+            foreach (TimerStartDescr timerStart in state.StartTimers.Values)
             {
-                this.m_writer.WriteLine($"{timer}->StartOrReset();");
+                if (this.m_modifiedTimers.Contains(timerStart.TimerName))
+                {
+                    string delayVariable = ComposeTimerDelayVariable(timerStart.TimerName);
+                    if (timerStart.Modify != null)
+                    {
+                        if (timerStart.Modify.multiplier != null)
+                        {
+                            this.m_writer.WriteLine($"{delayVariable} *= {timerStart.Modify.multiplier.Value.ToString(CultureInfo.InvariantCulture)};");
+                        };
+                        if (timerStart.Modify.increment != null)
+                        {
+                            this.m_writer.WriteLine($"{delayVariable} += {timerStart.Modify.increment.Value.ToString(CultureInfo.InvariantCulture)};");
+                        };
+                        if (timerStart.Modify.min != null)
+                        {
+                            this.m_writer.WriteLine($"if ({delayVariable} < {timerStart.Modify.min.Value.ToString(CultureInfo.InvariantCulture)}) {{ {delayVariable} = {timerStart.Modify.min.Value.ToString(CultureInfo.InvariantCulture)}; }}");
+                        };
+                        if (timerStart.Modify.max != null)
+                        {
+                            this.m_writer.WriteLine($"if ({delayVariable} > {timerStart.Modify.max.Value.ToString(CultureInfo.InvariantCulture)}) {{ {delayVariable} = {timerStart.Modify.max.Value.ToString(CultureInfo.InvariantCulture)}; }}");
+                        };
+                    };
+                    this.m_writer.WriteLine($"{timerStart.TimerName}->StartOrReset({delayVariable});");
+                }
+                else
+                {
+                    TimerDescr descr = this.m_stateMachine.Timers[timerStart.TimerName];
+                    this.m_writer.WriteLine($"{timerStart.TimerName}->StartOrReset({descr.IntervalSeconds.ToString(CultureInfo.InvariantCulture)});");
+                }
             }
 
             if (state.NeedOnEnterEvent)
@@ -317,6 +351,11 @@ namespace NiceStateMachineGenerator
             }
         }
 
+        private string ComposeTimerDelayVariable(string timerName)
+        {
+            return $"m_{timerName}_delay";
+        }
+
         private void WriteFields()
         {
             this.m_writer.WriteLine($"{STATES_ENUM_NAME} m_currentState = {STATES_ENUM_NAME}::{this.m_stateMachine.StartState};");
@@ -324,6 +363,11 @@ namespace NiceStateMachineGenerator
             foreach (string timer in this.m_stateMachine.Timers.Keys)
             {
                 this.m_writer.WriteLine($"T* {timer};");
+            }
+            foreach (string timer in this.m_modifiedTimers)
+            {
+                TimerDescr descr = this.m_stateMachine.Timers[timer];
+                this.m_writer.WriteLine($"double {ComposeTimerDelayVariable(timer)} = {descr.IntervalSeconds.ToString(CultureInfo.InvariantCulture)};");
             }
             this.m_writer.WriteLine();
         }
@@ -335,10 +379,9 @@ namespace NiceStateMachineGenerator
             {
                 ++this.m_writer.Indent;
                 this.m_writer.WriteLine($"TimerFiredCallback<T> timerCallback = std::bind(&{this.m_settings.ClassName}::OnTimer, this, std::placeholders::_1);");
-                foreach (TimerDescr timer in this.m_stateMachine.Timers.Values)
+                foreach (string timer in this.m_stateMachine.Timers.Keys)
                 {
-                    this.m_writer.WriteLine($"{timer.Name} = timerFactory(\"{timer.Name}\", {timer.IntervalSeconds.ToString(CultureInfo.InvariantCulture)}, timerCallback);");
-                    this.m_writer.WriteLine($"{timer.Name}->Stop();");
+                    this.m_writer.WriteLine($"{timer} = timerFactory(\"{timer}\", timerCallback);");
                 }
                 --this.m_writer.Indent;
             }
@@ -555,7 +598,7 @@ namespace NiceStateMachineGenerator
 @"
 template<class T>
 concept Timer = requires(T t) {
-    { t.StartOrReset() };
+    { t.StartOrReset(double timerDelaySeconds) };
     { t.Stop() };
 };
 
@@ -563,7 +606,7 @@ template<Timer T>
 using TimerFiredCallback = void(*)(const T* timer);
 
 template<Timer T>
-using TimerFactory = T*(*)(const char* timerName, double timerDelaySeconds, TimerFiredCallback<T> callback);
+using TimerFactory = T*(*)(const char* timerName, TimerFiredCallback<T> callback);
 
 ";
 

@@ -1,0 +1,197 @@
+/*
+https://datatracker.ietf.org/doc/html/rfc3261#section-17.1.2.2
+
+
+                                   |Request from TU
+                                   |send request
+               Timer E             V
+               send request  +-----------+
+                   +---------|           |-------------------+
+                   |         |  Trying   |  Timer F          |
+                   +-------->|           |  or Transport Err.|
+                             +-----------+  inform TU        |
+                200-699         |  |                         |
+                resp. to TU     |  |1xx                      |
+                +---------------+  |resp. to TU              |
+                |                  |                         |
+                |   Timer E        V       Timer F           |
+                |   send req +-----------+ or Transport Err. |
+                |  +---------|           | inform TU         |
+                |  |         |Proceeding |------------------>|
+                |  +-------->|           |-----+             |
+                |            +-----------+     |1xx          |
+                |              |      ^        |resp to TU   |
+                | 200-699      |      +--------+             |
+                | resp. to TU  |                             |
+                |              |                             |
+                |              V                             |
+                |            +-----------+                   |
+                |            |           |                   |
+                |            | Completed |                   |
+                |            |           |                   |
+                |            +-----------+                   |
+                |              ^   |                         |
+                |              |   | Timer K                 |
+                +--------------+   | -                       |
+                                   |                         |
+                                   V                         |
+             NOTE:           +-----------+                   |
+                             |           |                   |
+         transitions         | Terminated|<------------------+
+         labeled with        |           |
+         the event           +-----------+
+         over the action
+         to take
+
+                 Figure 6: non-INVITE client transaction
+*/
+
+{
+	"events": {
+		"SIP_1xx": {
+			"args": { "packet": "t_packet" }
+		},
+		"SIP_200_699": {
+			"args": { "packet": "t_packet" }
+		},
+		"TransportError": {}		
+	},
+	"timers": {
+		"Timer_F": 	32,		//64*T1
+		"Timer_E": 	0.5,	//T1 -- for unreliable
+		"Timer_E2": 4,		//T2 -- for unreliable
+		"Timer_K": 5, 		//T4 -- for unreliable
+	},
+	"start_state": "Trying_Start",
+	"states": {
+		"Trying_Start": {
+			"on_enter_comment": "send request",
+			"on_enter": true,
+			"start_timers": [ "Timer_F", "Timer_E" ],
+			"on_timer": {
+				"Timer_F": {
+					"on_traverse_comment": "the client transaction SHOULD inform the TU about the timeout",
+					"on_traverse": "event_only",					
+					"state": "Terminated"
+				},
+				"Timer_E": {
+					"on_traverse_comment": "retransmit",
+					"on_traverse": "event_only",
+					"state": "Trying_Retransmit"
+				}
+			},
+			"on_event": {
+				"SIP_1xx": {
+					"on_traverse_comment": "the response MUST be passed to the TU",
+					"on_traverse": "event_only",
+					"state": "Proceeding"
+				},
+				"SIP_200_699": {
+					"on_traverse_comment": "the response MUST be passed to the TU",
+					"on_traverse": "event_only",
+					"state": "Completed"
+				},
+				"TransportError": {
+					"on_traverse_comment": "the client transaction SHOULD inform the TU about the error",
+					"on_traverse": "event_only",					
+					"state": "Terminated"
+				},				
+			}
+		},
+		"Trying_Retransmit": {
+			"start_timers": [ 
+				{ 
+					"timer": "Timer_E",
+					"modify": {
+						"multiplier": 2,
+						"max": 4, 	//T2
+					}
+				}
+			],
+			"on_timer": {
+				"Timer_F": {
+					"on_traverse_comment": "the client transaction SHOULD inform the TU about the timeout",
+					"on_traverse": "event_only",					
+					"state": "Terminated"
+				},
+				"Timer_E": {
+					"on_traverse_comment": "retransmit",
+					"on_traverse": "event_only",
+					"state": "Trying_Retransmit"
+				}
+			},
+			"on_event": {
+				"SIP_1xx": {
+					"on_traverse_comment": "the response MUST be passed to the TU",
+					"on_traverse": "event_only",
+					"state": "Proceeding"
+				},
+				"SIP_200_699": {
+					"on_traverse_comment": "the response MUST be passed to the TU",
+					"on_traverse": "event_only",
+					"state": "Completed"
+				},
+				"TransportError": {
+					"on_traverse_comment": "the client transaction SHOULD inform the TU about the error",
+					"on_traverse": "event_only",					
+					"state": "Terminated"
+				},				
+			}
+		},
+		"Proceeding": {
+			"stop_timers": [ "Timer_E" ],
+			"start_timers": [ "Timer_E2" ],
+			"on_timer": {
+				"Timer_F": {
+					"on_traverse_comment": "the client transaction SHOULD inform the TU about the timeout",
+					"on_traverse": "event_only",					
+					"state": "Terminated"
+				},
+				"Timer_E2": {
+					"on_traverse_comment": "retransmit",
+					"on_traverse": "event_only",
+					"state": "Proceeding"
+				}
+			},
+			"on_event": {
+				"SIP_1xx": {
+					"on_traverse_comment": "the response MUST be passed to the TU",
+					"on_traverse": "event_only",
+					"state": "Proceeding"
+				},
+				"SIP_200_699": {
+					"on_traverse_comment": "the response MUST be passed to the TU",
+					"on_traverse": "event_only",
+					"state": "Completed"
+				},
+				"TransportError": {
+					"on_traverse_comment": "the client transaction SHOULD inform the TU about the error",
+					"on_traverse": "event_only",					
+					"state": "Terminated"
+				},				
+			}
+		},
+		"Completed": {
+			"stop_timers": [ "Timer_E", "Timer_E2", "Timer_F" ],
+			"start_timers": [ "Timer_K" ],
+			"next_state": "Completed_Consume"
+		},
+		"Completed_Consume": {
+			"on_timer": {
+				"Timer_K": "Terminated"
+			},
+			"on_event": {
+				"SIP_1xx": "Completed_Consume",
+				"SIP_200_699": "Completed_Consume",
+				"TransportError": "Completed_Consume"
+			},
+		},		
+		"Terminated": {
+			"on_enter_comment": "The client transaction MUST be destroyed the instant it enters the 'Terminated' state",
+			"on_enter": true,
+			"final": true
+		}
+	}
+}
+
+

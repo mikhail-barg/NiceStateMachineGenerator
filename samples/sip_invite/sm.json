@@ -58,7 +58,7 @@ resp. to TU |  1xx             V                     |
 	},
 	"timers": {
 		"Timer_A": 	0.5,	//T1
-		"Timer_A2": 2,		//2*T1
+		"Timer_A2": 1,		//2*T1
 		"Timer_B": 	32,		//64*T1
 		"Timer_D": 	32		//with a value of at least 32 seconds for unreliable transports, and a value of zero seconds for reliable transports.
 	},

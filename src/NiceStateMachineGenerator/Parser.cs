@@ -102,7 +102,7 @@ namespace NiceStateMachineGenerator
             }
         }
 
-        private void ParseTimersArray(HashSet<string> result, JObject json, string tokenName, HashSet<string> handledTokens)
+        private void ParseStopTimersArray(HashSet<string> result, JObject json, string tokenName, HashSet<string> handledTokens)
         {
             JArray? timers = ParserHelper.GetJArray(json, tokenName, handledTokens, required: false);
             if (timers == null || timers.Count == 0)
@@ -123,12 +123,87 @@ namespace NiceStateMachineGenerator
             }
         }
 
+        private void ParseStartTimersArray(Dictionary<string, TimerStartDescr> result, JObject json, string tokenName, HashSet<string> handledTokens)
+        {
+            JArray? timers = ParserHelper.GetJArray(json, tokenName, handledTokens, required: false);
+            if (timers == null || timers.Count == 0)
+            {
+                return;
+            }
+            foreach (JToken timerToken in timers)
+            {
+                TimerStartDescr descr;
+
+                switch (timerToken.Type)
+                {
+                case JTokenType.String:
+                    descr = new TimerStartDescr(ParserHelper.CheckAndConvertToString(timerToken, "Timer name"));
+                    break;
+                case JTokenType.Object:
+                    descr = ParseTimerStartObject((JObject)timerToken);
+                    break;
+                default:
+                    throw new ParseValidationException(timerToken, "Timer start token should be either String or Object");
+                }
+                
+                if (!this.m_timers.ContainsKey(descr.TimerName))
+                {
+                    throw new ParseValidationException(timerToken, $"Undeclared timer name in state {tokenName} description: '{descr.TimerName}'");
+                };
+                if (!result.TryAdd(descr.TimerName, descr))
+                {
+                    throw new ParseValidationException(timerToken, $"Duplicate timer name in state {tokenName} description: '{descr.TimerName}'");
+                };
+            }
+        }
+
+        private TimerStartDescr ParseTimerStartObject(JObject timerObject)
+        {
+            HashSet<string> handledTokens = new HashSet<string>();
+
+            string timerName = ParserHelper.GetJStringRequired(timerObject, "timer", handledTokens, out _);
+            TimerStartDescr result = new TimerStartDescr(timerName);
+
+            JObject? modifyObject = ParserHelper.GetJObject(timerObject, "modify", handledTokens, required: false);
+            if (modifyObject != null)
+            {
+                result.Modify = ParseTimerModifyObject(modifyObject);
+            }
+
+            ParserHelper.CheckAllTokensHandled(timerObject, handledTokens);
+
+            return result;
+        }
+
+        private TimerModifyDescr ParseTimerModifyObject(JObject modifyObject)
+        {
+            TimerModifyDescr result = new TimerModifyDescr();
+
+            HashSet<string> handledTokens = new HashSet<string>();
+
+            result.increment = ParserHelper.GetJDouble(modifyObject, "increment", handledTokens, required: false);
+            result.multiplier = ParserHelper.GetJDouble(modifyObject, "multiplier", handledTokens, required: false);
+            result.min = ParserHelper.GetJDouble(modifyObject, "min", handledTokens, required: false);
+            result.max = ParserHelper.GetJDouble(modifyObject, "max", handledTokens, required: false);
+
+            ParserHelper.CheckAllTokensHandled(modifyObject, handledTokens);
+
+            if (result.increment == null 
+                && result.multiplier == null
+            )
+            {
+                throw new ParseValidationException(modifyObject, "Timer modify object shouyld contain either 'increment' or 'multiplier' value");
+            }
+
+            return result;
+        }
+
         private void ParseState(StateDescr stateDescr, JObject json)
         {
             HashSet<string> handledTokens = new HashSet<string>();
 
-            ParseTimersArray(stateDescr.StartTimers, json, "start_timers", handledTokens);
-            ParseTimersArray(stateDescr.StopTimers, json, "stop_timers", handledTokens);
+            ParseStartTimersArray(stateDescr.StartTimers, json, "start_timers", handledTokens);
+            ParseStopTimersArray(stateDescr.StopTimers, json, "stop_timers", handledTokens);
 
             stateDescr.NeedOnEnterEvent = ParserHelper.GetJBoolWithDefault(json, "on_enter", false, handledTokens);
             stateDescr.OnEnterEventComment = ParserHelper.GetJString(json, "on_enter_comment", handledTokens, out JToken? commentToken, required: false);

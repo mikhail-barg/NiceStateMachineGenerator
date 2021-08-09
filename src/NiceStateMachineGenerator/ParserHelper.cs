@@ -122,5 +122,25 @@ namespace NiceStateMachineGenerator
             CheckTokenType(token, tokenName, JTokenType.Boolean);
             return (bool)token;
         }
+
+        public static double? GetJDouble(JObject container, string tokenName, HashSet<string> handledTokens, bool required)
+        {
+            JToken? token = GetJToken(container, tokenName, handledTokens, required);
+            if (token == null)
+            {
+                return null;
+            };
+            switch (token.Type)
+            {
+            case JTokenType.Null:
+                return null;
+            case JTokenType.Float:
+                return (double)token;
+            case JTokenType.Integer:
+                return (double)(int)token;
+            default:
+                throw new ParseValidationException(token, $"token {tokenName} should be Float or Int, but it is {token.Type}");
+            }
+        }
     }
 }

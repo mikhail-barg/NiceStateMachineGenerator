@@ -1,0 +1,30 @@
+digraph {
+    edge[fontname = "tahoma"; fontsize = 8];
+    node[fontname = "tahoma bold"; fontsize = 10];
+    Trying_Start [shape = Mrecord; label = "{ Trying_Start | (+) Timer_F| (+) Timer_E}"];
+    Trying_Retransmit [shape = Mrecord; label = "{ Trying_Retransmit | (+) Timer_E*}"];
+    Proceeding [shape = Mrecord; label = "{ Proceeding | (-) Timer_E| (+) Timer_E2}"];
+    Completed [shape = Mrecord; label = "{ Completed | (-) Timer_E| (-) Timer_E2| (-) Timer_F| (+) Timer_K}"];
+    Completed_Consume [shape = Mrecord; label = "{ Completed_Consume }"];
+    Terminated [shape = Mrecord; label = "{ Terminated }"; style = bold];
+    Trying_Start -> Proceeding [label = "SIP_1xx"];
+    Trying_Start -> Completed [label = "SIP_200_699"];
+    Trying_Start -> Terminated [label = "TransportError"];
+    Trying_Start -> Terminated [label = "Timer_F"][style = dashed];
+    Trying_Start -> Trying_Retransmit [label = "Timer_E"][style = dashed];
+    Trying_Retransmit -> Proceeding [label = "SIP_1xx"];
+    Trying_Retransmit -> Completed [label = "SIP_200_699"];
+    Trying_Retransmit -> Terminated [label = "TransportError"];
+    Trying_Retransmit -> Terminated [label = "Timer_F"][style = dashed];
+    Trying_Retransmit -> Trying_Retransmit [label = "Timer_E"][style = dashed];
+    Proceeding -> Proceeding [label = "SIP_1xx"];
+    Proceeding -> Completed [label = "SIP_200_699"];
+    Proceeding -> Terminated [label = "TransportError"];
+    Proceeding -> Terminated [label = "Timer_F"][style = dashed];
+    Proceeding -> Proceeding [label = "Timer_E2"][style = dashed];
+    Completed -> Completed_Consume [style = bold];
+    Completed_Consume -> Completed_Consume [label = "SIP_1xx"];
+    Completed_Consume -> Completed_Consume [label = "SIP_200_699"];
+    Completed_Consume -> Completed_Consume [label = "TransportError"];
+    Completed_Consume -> Terminated [label = "Timer_K"][style = dashed];
+}

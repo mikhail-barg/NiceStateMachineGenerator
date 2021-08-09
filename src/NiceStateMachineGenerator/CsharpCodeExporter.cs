@@ -45,12 +45,20 @@ namespace NiceStateMachineGenerator
         private readonly StateMachineDescr m_stateMachine;
         private readonly IndentedTextWriter m_writer;
         private readonly Settings m_settings;
+        private readonly HashSet<string> m_modifiedTimers;
 
         private CsharpCodeExporter(StateMachineDescr stateMachine, IndentedTextWriter writer, Settings settings)
         {
             this.m_stateMachine = stateMachine;
             this.m_writer = writer;
             this.m_settings = settings;
+
+
+            this.m_modifiedTimers = this.m_stateMachine.States.Values
+                .SelectMany(s => s.StartTimers.Values)
+                .Where(t => t.Modify != null)
+                .Select(t => t.TimerName)
+                .ToHashSet();
         }
 
         private void ExportInternal()
@@ -290,9 +298,37 @@ namespace NiceStateMachineGenerator
             {
                 this.m_writer.WriteLine($"this.{timer}.Stop();");
             }
-            foreach (string timer in state.StartTimers)
+            foreach (TimerStartDescr timerStart in state.StartTimers.Values)
             {
-                this.m_writer.WriteLine($"this.{timer}.StartOrReset();");
+                if (this.m_modifiedTimers.Contains(timerStart.TimerName))
+                {
+                    string delayVariable = ComposeTimerDelayVariable(timerStart.TimerName);
+                    if (timerStart.Modify != null)
+                    {
+                        if (timerStart.Modify.multiplier != null)
+                        {
+                            this.m_writer.WriteLine($"this.{delayVariable} *= {timerStart.Modify.multiplier.Value.ToString(CultureInfo.InvariantCulture)};");
+                        };
+                        if (timerStart.Modify.increment != null)
+                        {
+                            this.m_writer.WriteLine($"this.{delayVariable} += {timerStart.Modify.increment.Value.ToString(CultureInfo.InvariantCulture)};");
+                        };
+                        if (timerStart.Modify.min != null)
+                        {
+                            this.m_writer.WriteLine($"if (this.{delayVariable} < {timerStart.Modify.min.Value.ToString(CultureInfo.InvariantCulture)}) {{ this.{delayVariable} = {timerStart.Modify.min.Value.ToString(CultureInfo.InvariantCulture)}; }}");
+                        };
+                        if (timerStart.Modify.max != null)
+                        {
+                            this.m_writer.WriteLine($"if (this.{delayVariable} > {timerStart.Modify.max.Value.ToString(CultureInfo.InvariantCulture)}) {{ this.{delayVariable} = {timerStart.Modify.max.Value.ToString(CultureInfo.InvariantCulture)}; }}");
+                        };
+                    };
+                    this.m_writer.WriteLine($"this.{timerStart.TimerName}.StartOrReset({delayVariable});");
+                }
+                else
+                {
+                    TimerDescr descr = this.m_stateMachine.Timers[timerStart.TimerName];
+                    this.m_writer.WriteLine($"this.{timerStart.TimerName}.StartOrReset({descr.IntervalSeconds.ToString(CultureInfo.InvariantCulture)});");
+                }
             }
 
             if (state.NeedOnEnterEvent)
@@ -300,6 +336,11 @@ namespace NiceStateMachineGenerator
                 string callbackName = ComposeStateEnterCallback(state);
                 this.m_writer.WriteLine($"{callbackName}?.Invoke();");
             }
+        }
+
+        private string ComposeTimerDelayVariable(string timerName)
+        {
+            return $"m_{timerName}_delay";
         }
 
         private void WriteFieldsAndConstructorDestructor()
@@ -310,6 +351,11 @@ namespace NiceStateMachineGenerator
             {
                 this.m_writer.WriteLine($"private readonly ITimer {timer};");
             }
+            foreach (string timer in this.m_modifiedTimers)
+            {
+                TimerDescr descr = this.m_stateMachine.Timers[timer];
+                this.m_writer.WriteLine($"private double {ComposeTimerDelayVariable(timer)} = {descr.IntervalSeconds.ToString(CultureInfo.InvariantCulture)};");
+            }
 
             this.m_writer.WriteLine();
             this.m_writer.WriteLine($"public {STATES_ENUM_NAME} CurrentState {{ get; private set; }} = {STATES_ENUM_NAME}.{this.m_stateMachine.StartState};");
@@ -318,10 +364,9 @@ namespace NiceStateMachineGenerator
             this.m_writer.WriteLine("{");
             {
                 ++this.m_writer.Indent;
-                foreach (TimerDescr timer in this.m_stateMachine.Timers.Values)
+                foreach (string timer in this.m_stateMachine.Timers.Keys)
                 {
-                    this.m_writer.WriteLine($"this.{timer.Name} = timerFactory.CreateTimer(\"{timer.Name}\", {timer.IntervalSeconds.ToString(CultureInfo.InvariantCulture)}, this.OnTimer);");
-                    this.m_writer.WriteLine($"this.{timer.Name}.Stop();");
+                    this.m_writer.WriteLine($"this.{timer} = timerFactory.CreateTimer(\"{timer}\", this.OnTimer);");
                 }
                 --this.m_writer.Indent;
             }
@@ -551,13 +596,13 @@ public delegate void TimerFiredCallback(ITimer timer);
 
 public interface ITimer: IDisposable
 {
-    void StartOrReset();
+    void StartOrReset(double timerDelaySeconds);
     void Stop();
 }
 
 public interface ITimerFactory
 {
-    ITimer CreateTimer(string timerName, double timerDelaySeconds, TimerFiredCallback callback);
+    ITimer CreateTimer(string timerName, TimerFiredCallback callback);
 }
 
 ";

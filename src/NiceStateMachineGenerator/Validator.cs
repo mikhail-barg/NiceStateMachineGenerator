@@ -131,7 +131,7 @@ namespace NiceStateMachineGenerator
             {
                 string timer = this.m_timers[timerIndex];
                 bool enabled;
-                if (state.StartTimers.Contains(timer))
+                if (state.StartTimers.ContainsKey(timer))
                 {
                     enabled = true;
                 }

@@ -67,7 +67,7 @@ namespace NiceStateMachineGenerator
         
         public string? OnEnterEventComment { get; set; }
         public bool NeedOnEnterEvent { get; set; }
-        public readonly HashSet<string> StartTimers = new HashSet<string>();
+        public readonly Dictionary<string, TimerStartDescr> StartTimers = new Dictionary<string, TimerStartDescr>();
         public readonly HashSet<string> StopTimers = new HashSet<string>();
 
         public Dictionary<string, EdgeDescr>? EventEdges { get; set; }
@@ -91,6 +91,25 @@ namespace NiceStateMachineGenerator
             this.Name = name;
             this.IntervalSeconds = intervalSeconds;
         }
+    }
+
+    public sealed class TimerStartDescr
+    {
+        public readonly string TimerName;
+        public TimerModifyDescr? Modify { get; set; } = null;
+
+        public TimerStartDescr(string timerName)
+        {
+            this.TimerName = timerName;
+        }
+    }
+
+    public sealed class TimerModifyDescr
+    {
+        public double? multiplier = null;
+        public double? increment = null;
+        public double? min = null;
+        public double? max = null;
     }
 
     public sealed class StateMachineDescr

@@ -1,0 +1,21 @@
+{
+	"graphwiz": {
+		"ShowStateEnterEvents": false,
+		"ShowEdgeTraverseEvents": false,
+		"ShowEdgeTraverseComments": false
+	},
+	"c_sharp": {
+		"NamespaceName": "Sip.Generated",
+		"ClassName": null,
+		"AdditionalUsings": [
+			"Sip"
+		]
+	},
+	"cpp": {
+		"NamespaceName": "sip::generated",
+		"ClassName": null,
+		"AdditionalIncludes": [
+			"sip.h"
+		]
+	},
+}

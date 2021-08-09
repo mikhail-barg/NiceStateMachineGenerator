@@ -6,12 +6,14 @@
 #include <functional>
 
 
-namespace generated
+#include sip.h
+
+namespace sip::generated
 {
     
     template<class T>
     concept Timer = requires(T t) {
-        { t.StartOrReset() };
+        { t.StartOrReset(double timerDelaySeconds) };
         { t.Stop() };
     };
     
@@ -19,11 +21,11 @@ namespace generated
     using TimerFiredCallback = void(*)(const T* timer);
     
     template<Timer T>
-    using TimerFactory = T*(*)(const char* timerName, double timerDelaySeconds, TimerFiredCallback<T> callback);
+    using TimerFactory = T*(*)(const char* timerName, TimerFiredCallback<T> callback);
     
     
     template <Timer T>
-    class StateMachine
+    class client__invite__udp
     {
     public:
         enum class States
@@ -63,20 +65,16 @@ namespace generated
         T* Timer_D;
         
     public:
-        StateMachine(TimerFactory<T> timerFactory)
+        client__invite__udp(TimerFactory<T> timerFactory)
         {
-            TimerFiredCallback<T> timerCallback = std::bind(&StateMachine::OnTimer, this, std::placeholders::_1);
-            Timer_A = timerFactory("Timer_A", 0.5, timerCallback);
-            Timer_A->Stop();
-            Timer_A2 = timerFactory("Timer_A2", 2, timerCallback);
-            Timer_A2->Stop();
-            Timer_B = timerFactory("Timer_B", 32, timerCallback);
-            Timer_B->Stop();
-            Timer_D = timerFactory("Timer_D", 32, timerCallback);
-            Timer_D->Stop();
+            TimerFiredCallback<T> timerCallback = std::bind(&client__invite__udp::OnTimer, this, std::placeholders::_1);
+            Timer_A = timerFactory("Timer_A", timerCallback);
+            Timer_A2 = timerFactory("Timer_A2", timerCallback);
+            Timer_B = timerFactory("Timer_B", timerCallback);
+            Timer_D = timerFactory("Timer_D", timerCallback);
         }
         
-        ~StateMachine()
+        ~client__invite__udp()
         {
             delete Timer_A;
             delete Timer_A2;
@@ -92,8 +90,8 @@ namespace generated
         void Start()
         {
             m_currentState = States::Calling_Start;
-            Timer_A->StartOrReset();
-            Timer_B->StartOrReset();
+            Timer_A->StartOrReset(0.5);
+            Timer_B->StartOrReset(32);
             if (OnStateEnter__Calling_Start) { OnStateEnter__Calling_Start(); }
         }
         
@@ -266,15 +264,15 @@ namespace generated
             {
             case States::Calling_Start:
                 m_currentState = States::Calling_Start;
-                Timer_A->StartOrReset();
-                Timer_B->StartOrReset();
+                Timer_A->StartOrReset(0.5);
+                Timer_B->StartOrReset(32);
                 if (OnStateEnter__Calling_Start) { OnStateEnter__Calling_Start(); }
                 break;
                 
             case States::Calling_Retransmit:
                 m_currentState = States::Calling_Retransmit;
                 Timer_A->Stop();
-                Timer_A2->StartOrReset();
+                Timer_A2->StartOrReset(1);
                 if (OnStateEnter__Calling_Retransmit) { OnStateEnter__Calling_Retransmit(); }
                 break;
                 
@@ -290,7 +288,7 @@ namespace generated
                 Timer_A->Stop();
                 Timer_A2->Stop();
                 Timer_B->Stop();
-                Timer_D->StartOrReset();
+                Timer_D->StartOrReset(32);
                 break;
                 
             case States::Terminated:

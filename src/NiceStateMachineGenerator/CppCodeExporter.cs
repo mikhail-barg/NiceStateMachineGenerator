@@ -16,7 +16,7 @@ namespace NiceStateMachineGenerator
         public sealed class Settings
         {
             public string NamespaceName { get; set; } = "generated";
-            public string ClassName { get; set; } = "StateMachine";
+            public string? ClassName { get; set; } = null; //generate from file name
             public List<string>? AdditionalIncludes { get; set; } = null;
         }
 
@@ -24,6 +24,10 @@ namespace NiceStateMachineGenerator
         {
             using (StreamWriter writer = new StreamWriter(headerFile))
             {
+                if (String.IsNullOrEmpty(settings.ClassName))
+                {
+                    settings.ClassName = ExportHelper.GetClassNameFromFileName(headerFile);
+                }
                 Export(stateMachine, writer, settings);
             }
         }
@@ -70,7 +74,7 @@ namespace NiceStateMachineGenerator
             {
                 foreach (string include in this.m_settings.AdditionalIncludes)
                 {
-                    this.m_writer.WriteLine($"include {include}");
+                    this.m_writer.WriteLine($"#include {include}");
                 };
                 this.m_writer.WriteLine();
             };

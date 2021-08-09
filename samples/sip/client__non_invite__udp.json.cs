@@ -2,9 +2,11 @@
 
 using System;
 
-namespace Generated
+using Sip;
+
+namespace Sip.Generated
 {
-    public partial class StateMachine: IDisposable
+    public partial class client__non_invite__udp: IDisposable
     {
         
         public delegate void TimerFiredCallback(ITimer timer);
@@ -58,7 +60,7 @@ namespace Generated
         
         public States CurrentState { get; private set; } = States.Trying_Start;
         
-        public StateMachine(ITimerFactory timerFactory)
+        public client__non_invite__udp(ITimerFactory timerFactory)
         {
             this.Timer_F = timerFactory.CreateTimer("Timer_F", this.OnTimer);
             this.Timer_E = timerFactory.CreateTimer("Timer_E", this.OnTimer);
@@ -82,7 +84,7 @@ namespace Generated
         {
             if (this.m_isDisposed)
             {
-                throw new ObjectDisposedException("StateMachine");
+                throw new ObjectDisposedException("client__non_invite__udp");
             }
         }
         

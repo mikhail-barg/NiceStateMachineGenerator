@@ -6,11 +6,11 @@
     },
     "sip_invite": {
       "commandName": "Project",
-      "commandLineArgs": "../../../../../samples/sip_invite/sm.json"
+      "commandLineArgs": "../../../../../samples/sip/client__invite__udp.json -c ../../../../../samples/sip/export_config.json -m all"
     },
     "sip_non_invite": {
       "commandName": "Project",
-      "commandLineArgs": "../../../../../samples/sip_non_invite/sm.json"
+      "commandLineArgs": "../../../../../samples/sip/client__non_invite__udp.json -c ../../../../../samples/sip/export_config.json -m all"
     }
   }
 }

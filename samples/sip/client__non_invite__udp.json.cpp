@@ -6,7 +6,9 @@
 #include <functional>
 
 
-namespace generated
+#include sip.h
+
+namespace sip::generated
 {
     
     template<class T>
@@ -23,7 +25,7 @@ namespace generated
     
     
     template <Timer T>
-    class StateMachine
+    class client__non_invite__udp
     {
     public:
         enum class States
@@ -63,16 +65,16 @@ namespace generated
         double m_Timer_E_delay = 0.5;
         
     public:
-        StateMachine(TimerFactory<T> timerFactory)
+        client__non_invite__udp(TimerFactory<T> timerFactory)
         {
-            TimerFiredCallback<T> timerCallback = std::bind(&StateMachine::OnTimer, this, std::placeholders::_1);
+            TimerFiredCallback<T> timerCallback = std::bind(&client__non_invite__udp::OnTimer, this, std::placeholders::_1);
             Timer_F = timerFactory("Timer_F", timerCallback);
             Timer_E = timerFactory("Timer_E", timerCallback);
             Timer_E2 = timerFactory("Timer_E2", timerCallback);
             Timer_K = timerFactory("Timer_K", timerCallback);
         }
         
-        ~StateMachine()
+        ~client__non_invite__udp()
         {
             delete Timer_F;
             delete Timer_E;

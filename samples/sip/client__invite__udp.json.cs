@@ -2,22 +2,24 @@
 
 using System;
 
-namespace Generated
+using Sip;
+
+namespace Sip.Generated
 {
-    public partial class StateMachine: IDisposable
+    public partial class client__invite__udp: IDisposable
     {
         
         public delegate void TimerFiredCallback(ITimer timer);
         
         public interface ITimer: IDisposable
         {
-            void StartOrReset();
+            void StartOrReset(double timerDelaySeconds);
             void Stop();
         }
         
         public interface ITimerFactory
         {
-            ITimer CreateTimer(string timerName, double timerDelaySeconds, TimerFiredCallback callback);
+            ITimer CreateTimer(string timerName, TimerFiredCallback callback);
         }
         
         
@@ -58,16 +60,12 @@ namespace Generated
         
         public States CurrentState { get; private set; } = States.Calling_Start;
         
-        public StateMachine(ITimerFactory timerFactory)
+        public client__invite__udp(ITimerFactory timerFactory)
         {
-            this.Timer_A = timerFactory.CreateTimer("Timer_A", 0.5, this.OnTimer);
-            this.Timer_A.Stop();
-            this.Timer_A2 = timerFactory.CreateTimer("Timer_A2", 2, this.OnTimer);
-            this.Timer_A2.Stop();
-            this.Timer_B = timerFactory.CreateTimer("Timer_B", 32, this.OnTimer);
-            this.Timer_B.Stop();
-            this.Timer_D = timerFactory.CreateTimer("Timer_D", 32, this.OnTimer);
-            this.Timer_D.Stop();
+            this.Timer_A = timerFactory.CreateTimer("Timer_A", this.OnTimer);
+            this.Timer_A2 = timerFactory.CreateTimer("Timer_A2", this.OnTimer);
+            this.Timer_B = timerFactory.CreateTimer("Timer_B", this.OnTimer);
+            this.Timer_D = timerFactory.CreateTimer("Timer_D", this.OnTimer);
         }
         
         public void Dispose()
@@ -86,7 +84,7 @@ namespace Generated
         {
             if (this.m_isDisposed)
             {
-                throw new ObjectDisposedException("StateMachine");
+                throw new ObjectDisposedException("client__invite__udp");
             }
         }
         
@@ -94,8 +92,8 @@ namespace Generated
         {
             CheckNotDisposed();
             this.CurrentState = States.Calling_Start;
-            this.Timer_A.StartOrReset();
-            this.Timer_B.StartOrReset();
+            this.Timer_A.StartOrReset(0.5);
+            this.Timer_B.StartOrReset(32);
             OnStateEnter__Calling_Start?.Invoke();
         }
         
@@ -273,15 +271,15 @@ namespace Generated
             {
             case States.Calling_Start:
                 this.CurrentState = States.Calling_Start;
-                this.Timer_A.StartOrReset();
-                this.Timer_B.StartOrReset();
+                this.Timer_A.StartOrReset(0.5);
+                this.Timer_B.StartOrReset(32);
                 OnStateEnter__Calling_Start?.Invoke();
                 break;
                 
             case States.Calling_Retransmit:
                 this.CurrentState = States.Calling_Retransmit;
                 this.Timer_A.Stop();
-                this.Timer_A2.StartOrReset();
+                this.Timer_A2.StartOrReset(1);
                 OnStateEnter__Calling_Retransmit?.Invoke();
                 break;
                 
@@ -297,7 +295,7 @@ namespace Generated
                 this.Timer_A.Stop();
                 this.Timer_A2.Stop();
                 this.Timer_B.Stop();
-                this.Timer_D.StartOrReset();
+                this.Timer_D.StartOrReset(32);
                 break;
                 
             case States.Terminated:

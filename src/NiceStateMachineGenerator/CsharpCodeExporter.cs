@@ -16,7 +16,7 @@ namespace NiceStateMachineGenerator
         public sealed class Settings
         {
             public string NamespaceName { get; set; } = "Generated";
-            public string ClassName { get; set; } = "StateMachine";
+            public string? ClassName { get; set; } = null; //generate from file name
             public List<string>? AdditionalUsings { get; set; }
         }
 
@@ -24,6 +24,10 @@ namespace NiceStateMachineGenerator
         {
             using (StreamWriter writer = new StreamWriter(fileName))
             {
+                if (String.IsNullOrEmpty(settings.ClassName))
+                {
+                    settings.ClassName = ExportHelper.GetClassNameFromFileName(fileName);
+                }
                 Export(stateMachine, writer, settings);
             }
         }

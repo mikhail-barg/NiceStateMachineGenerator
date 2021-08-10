@@ -12,6 +12,7 @@ namespace NiceStateMachineGenerator
         {
             Validator validator = new Validator(stateMachine);
             validator.Validate();
+            validator.CheckUnusedTimers();
         }
 
         private readonly StateMachineDescr m_stateMachine;
@@ -48,6 +49,28 @@ namespace NiceStateMachineGenerator
                     ++index;
                 }
             };
+        }
+
+        private void CheckUnusedTimers()
+        {
+            HashSet<string> usedTimers = new HashSet<string>();
+            foreach (StateDescr state in this.m_stateMachine.States.Values)
+            {
+                foreach (string timer in state.StartTimers.Keys)
+                {
+                    usedTimers.Add(timer);
+                }
+            }
+
+            List<string> unusedTimers = this.m_timers
+                .Except(usedTimers)
+                .OrderBy(s => s)
+                .ToList();
+
+            if (unusedTimers.Count > 0)
+            {
+                throw new LogicValidationException($"Timers that are declared but never started: {String.Join(", ", unusedTimers)}");
+            }
         }
 
         private void Validate()

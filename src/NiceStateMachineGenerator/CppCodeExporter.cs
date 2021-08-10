@@ -322,21 +322,28 @@ namespace NiceStateMachineGenerator
                     string delayVariable = ComposeTimerDelayVariable(timerStart.TimerName);
                     if (timerStart.Modify != null)
                     {
-                        if (timerStart.Modify.multiplier != null)
+                        if (timerStart.Modify.set != null)
                         {
-                            this.m_writer.WriteLine($"{delayVariable} *= {timerStart.Modify.multiplier.Value.ToString(CultureInfo.InvariantCulture)};");
-                        };
-                        if (timerStart.Modify.increment != null)
+                            this.m_writer.WriteLine($"{delayVariable} = {timerStart.Modify.set.Value.ToString(CultureInfo.InvariantCulture)};");
+                        }
+                        else
                         {
-                            this.m_writer.WriteLine($"{delayVariable} += {timerStart.Modify.increment.Value.ToString(CultureInfo.InvariantCulture)};");
-                        };
-                        if (timerStart.Modify.min != null)
-                        {
-                            this.m_writer.WriteLine($"if ({delayVariable} < {timerStart.Modify.min.Value.ToString(CultureInfo.InvariantCulture)}) {{ {delayVariable} = {timerStart.Modify.min.Value.ToString(CultureInfo.InvariantCulture)}; }}");
-                        };
-                        if (timerStart.Modify.max != null)
-                        {
-                            this.m_writer.WriteLine($"if ({delayVariable} > {timerStart.Modify.max.Value.ToString(CultureInfo.InvariantCulture)}) {{ {delayVariable} = {timerStart.Modify.max.Value.ToString(CultureInfo.InvariantCulture)}; }}");
+                            if (timerStart.Modify.multiplier != null)
+                            {
+                                this.m_writer.WriteLine($"{delayVariable} *= {timerStart.Modify.multiplier.Value.ToString(CultureInfo.InvariantCulture)};");
+                            };
+                            if (timerStart.Modify.increment != null)
+                            {
+                                this.m_writer.WriteLine($"{delayVariable} += {timerStart.Modify.increment.Value.ToString(CultureInfo.InvariantCulture)};");
+                            };
+                            if (timerStart.Modify.min != null)
+                            {
+                                this.m_writer.WriteLine($"if ({delayVariable} < {timerStart.Modify.min.Value.ToString(CultureInfo.InvariantCulture)}) {{ {delayVariable} = {timerStart.Modify.min.Value.ToString(CultureInfo.InvariantCulture)}; }}");
+                            };
+                            if (timerStart.Modify.max != null)
+                            {
+                                this.m_writer.WriteLine($"if ({delayVariable} > {timerStart.Modify.max.Value.ToString(CultureInfo.InvariantCulture)}) {{ {delayVariable} = {timerStart.Modify.max.Value.ToString(CultureInfo.InvariantCulture)}; }}");
+                            };
                         };
                     };
                     this.m_writer.WriteLine($"{timerStart.TimerName}->StartOrReset({delayVariable});");

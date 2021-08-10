@@ -164,10 +164,28 @@ namespace NiceStateMachineGenerator
             string timerName = ParserHelper.GetJStringRequired(timerObject, "timer", handledTokens, out _);
             TimerStartDescr result = new TimerStartDescr(timerName);
 
-            JObject? modifyObject = ParserHelper.GetJObject(timerObject, "modify", handledTokens, required: false);
-            if (modifyObject != null)
+            JToken? modifyToken = ParserHelper.GetJToken(timerObject, "modify", handledTokens, required: false);
+            if (modifyToken != null)
             {
-                result.Modify = ParseTimerModifyObject(modifyObject);
+                switch (modifyToken.Type)
+                {
+                case JTokenType.Integer:
+                    result.Modify = new TimerModifyDescr() {
+                        set = (int)modifyToken
+                    };
+                    break;
+                case JTokenType.Float:
+                    result.Modify = new TimerModifyDescr() {
+                        set = (double)modifyToken
+                    };
+                    break;
+                case JTokenType.Object:
+                    result.Modify = ParseTimerModifyObject((JObject)modifyToken);
+                    break;
+                default:
+                    throw new ParseValidationException(modifyToken, "Timer modify token should be either a numeric value or object");
+                }
+                
             }
 
             ParserHelper.CheckAllTokensHandled(timerObject, handledTokens);

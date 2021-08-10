@@ -25,11 +25,12 @@ namespace NiceStateMachineGenerator.App
 
             Console.WriteLine("Validating state machine");
             Validator.Validate(stateMachine);
+            Console.WriteLine("Validation done");
 
             switch (config.mode)
             {
             case Mode.validate:
-                Console.WriteLine("Only validation, no file output mode specified, exiting");
+                Console.WriteLine("No file output mode specified");
                 return;
             case Mode.all:
                 {

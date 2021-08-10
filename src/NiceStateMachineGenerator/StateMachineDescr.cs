@@ -106,6 +106,8 @@ namespace NiceStateMachineGenerator
 
     public sealed class TimerModifyDescr
     {
+        public double? set = null;
+
         public double? multiplier = null;
         public double? increment = null;
         public double? min = null;

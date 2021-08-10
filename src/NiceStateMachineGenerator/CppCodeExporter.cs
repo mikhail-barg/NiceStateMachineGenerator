@@ -382,11 +382,16 @@ namespace NiceStateMachineGenerator
             this.m_writer.WriteLine("{");
             {
                 ++this.m_writer.Indent;
-                this.m_writer.WriteLine($"TimerFiredCallback<T> timerCallback = std::bind(&{this.m_settings.ClassName}::OnTimer, this, std::placeholders::_1);");
-                foreach (string timer in this.m_stateMachine.Timers.Keys)
+
+                if (this.m_stateMachine.Timers.Count > 0)
                 {
-                    this.m_writer.WriteLine($"{timer} = timerFactory(\"{timer}\", timerCallback);");
-                }
+                    this.m_writer.WriteLine($"TimerFiredCallback<T> timerCallback = std::bind(&{this.m_settings.ClassName}::OnTimer, this, std::placeholders::_1);");
+                    foreach (string timer in this.m_stateMachine.Timers.Keys)
+                    {
+                        this.m_writer.WriteLine($"{timer} = timerFactory(\"{timer}\", timerCallback);");
+                    }
+                };
+
                 --this.m_writer.Indent;
             }
             this.m_writer.WriteLine("}");

@@ -26,40 +26,41 @@ namespace NiceStateMachineGenerator.App
             Console.WriteLine("Validating state machine");
             Validator.Validate(stateMachine);
 
-            if (config.mode == null)
+            switch (config.mode)
             {
-                Console.WriteLine("No output mode specified, exiting");
+            case Mode.validate:
+                Console.WriteLine("Only validation, no file output mode specified, exiting");
                 return;
-            }
-            else if (config.mode == Config.Mode.all)
-            {
-                string outFile = config.output ?? sourceFile;
-                ExportSingleMode(stateMachine, outFile + ".dot", Config.Mode.dot, config);
-                ExportSingleMode(stateMachine, outFile + ".cs", Config.Mode.cs, config);
-                ExportSingleMode(stateMachine, outFile + ".cpp", Config.Mode.cpp, config);
-            }
-            else
-            {
-                ExportSingleMode(stateMachine, config.output ?? sourceFile + "." + config.mode, config.mode.Value, config);
+            case Mode.all:
+                {
+                    string outFile = config.output ?? sourceFile;
+                    ExportSingleMode(stateMachine, outFile + Mode.dot.ToExtension(), Mode.dot, config);
+                    ExportSingleMode(stateMachine, outFile + Mode.cs.ToExtension(), Mode.cs, config);
+                    ExportSingleMode(stateMachine, outFile + Mode.cpp.ToExtension(), Mode.cpp, config);
+                }
+                break;
+            default:
+                ExportSingleMode(stateMachine, config.output ?? sourceFile + config.mode.ToExtension(), config.mode, config);
+                break;
             }
         }
 
-        private static void ExportSingleMode(StateMachineDescr stateMachine, string outFileName, Config.Mode mode, Config config)
+        private static void ExportSingleMode(StateMachineDescr stateMachine, string outFileName, Mode mode, Config config)
         {
             Console.WriteLine($"Writing output for mode {mode} to {outFileName}");
             switch (mode)
             {
-            case Config.Mode.dot:
+            case Mode.dot:
                 GraphwizExporter.Export(stateMachine, outFileName, config.graphwiz);
                 break;
-            case Config.Mode.cs:
+            case Mode.cs:
                 CsharpCodeExporter.Export(stateMachine, outFileName, config.c_sharp);
                 break;
-            case Config.Mode.cpp:
+            case Mode.cpp:
                 CppCodeExporter.Export(stateMachine, outFileName, config.cpp);
                 break;
             default:
-                throw new Exception($"Unexpected output mode '{mode}'. Supported modes are: {String.Join(", ", Enum.GetNames<Config.Mode>())}");
+                throw new Exception($"Unexpected output mode '{mode}'. Supported modes are: {String.Join(", ", Enum.GetNames<Mode>())}");
             }
         }
 
@@ -68,12 +69,16 @@ namespace NiceStateMachineGenerator.App
             Console.WriteLine("Usage: ");
             Console.WriteLine($"{nameof(NiceStateMachineGenerator)}.{nameof(NiceStateMachineGenerator.App)} <state machine json file> [options]");
             Console.WriteLine($"Possible options:");
-            Console.WriteLine($"-c/--config <config.json> : configuration file. Contains settings for all exporters and may contain any of settings below");
-            Console.WriteLine($"-m/--mode <mode> : export mode. One of 'dot', 'cs', 'cpp' or 'all'. If not specified then just a validation is performed");
-            Console.WriteLine($"-o/--output <output file name> : output file name. If not specified then <input file name>.<mode> is used. In case of 'all' mode postfixes are added as well");
+            Console.WriteLine($"-c/--config <config.json> : configuration file. Contains settings for all exporters and may contain any of the settings below");
+            Console.WriteLine($"-m/--mode <mode> : export mode. One of 'dot', 'cs', 'cpp'.");
+            Console.WriteLine($"\t\tUse 'all' ti output all 3 type of files.");
+            Console.WriteLine($"\t\tUse 'validate' to suppress file output (default mode). All other modes also do validation.");
+            Console.WriteLine($"-o/--output <output file name> : output file name.");
+            Console.WriteLine($"\t\tIf not specified then <input file name>.<mode-specific extension> is used.");
+            Console.WriteLine($"\t\tIn case of 'all' mode specific extensions are added to <output file name>.");
+            Console.WriteLine($"\t\tIngnored for 'validate' mode.");
             Console.WriteLine($"Also any option for exporter may be overriden via cmdline args. Nesting is specified by ':'");
-            Console.WriteLine($"E.g.: '--c_sharp:ClassName=MyClass' or '--cpp:NamespaceName ns'");
-            
+            Console.WriteLine($"\t\tE.g.: '--c_sharp:ClassName=MyClass' or '--cpp:NamespaceName ns'");
         }
 
         static Config GetConfig(string[] args)

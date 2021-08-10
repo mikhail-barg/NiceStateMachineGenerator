@@ -5,10 +5,10 @@
 		"ShowEdgeTraverseComments": false
 	},
 	"c_sharp": {
-		"NamespaceName": "Sip.Generated",
+		"NamespaceName": "SampleApp.Sip.Generated",
 		"ClassName": null,
 		"AdditionalUsings": [
-			"Sip"
+			"SampleApp.Sip"
 		]
 	},
 	"cpp": {

@@ -2,9 +2,9 @@
 
 using System;
 
-using Sip;
+using SampleApp.Sip;
 
-namespace Sip.Generated
+namespace SampleApp.Sip.Generated
 {
     public partial class client__invite__udp: IDisposable
     {

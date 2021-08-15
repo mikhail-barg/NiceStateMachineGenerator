@@ -12,37 +12,46 @@ namespace NiceStateMachineGenerator.App
     {
         static void Main(string[] args)
         {
-            if (args.Length == 0)
+            try
             {
-                WriteUsage();
-                Environment.Exit(1);
-            };
-            string sourceFile = args[0];
-            Config config = GetConfig(args.Skip(1).ToArray());
-
-            Console.WriteLine("Reading state machine description from " + sourceFile);
-            StateMachineDescr stateMachine = Parser.ParseFile(sourceFile);
-
-            Console.WriteLine("Validating state machine");
-            Validator.Validate(stateMachine);
-            Console.WriteLine("Validation done");
-
-            switch (config.mode)
-            {
-            case Mode.validate:
-                Console.WriteLine("No file output mode specified");
-                return;
-            case Mode.all:
+                if (args.Length == 0)
                 {
-                    string outFile = config.output ?? sourceFile;
-                    ExportSingleMode(stateMachine, outFile + Mode.dot.ToExtension(), Mode.dot, config);
-                    ExportSingleMode(stateMachine, outFile + Mode.cs.ToExtension(), Mode.cs, config);
-                    ExportSingleMode(stateMachine, outFile + Mode.cpp.ToExtension(), Mode.cpp, config);
+                    WriteUsage();
+                    Environment.Exit(1);
+                };
+
+                string sourceFile = args[0];
+                Config config = GetConfig(args.Skip(1).ToArray());
+
+                Console.WriteLine("Reading state machine description from " + sourceFile);
+                StateMachineDescr stateMachine = Parser.ParseFile(sourceFile);
+
+                Console.WriteLine("Validating state machine");
+                Validator.Validate(stateMachine);
+                Console.WriteLine("Validation done");
+
+                switch (config.mode)
+                {
+                case Mode.validate:
+                    Console.WriteLine("No file output mode specified");
+                    return;
+                case Mode.all:
+                    {
+                        string outFile = config.output ?? sourceFile;
+                        ExportSingleMode(stateMachine, outFile + Mode.dot.ToExtension(), Mode.dot, config);
+                        ExportSingleMode(stateMachine, outFile + Mode.cs.ToExtension(), Mode.cs, config);
+                        ExportSingleMode(stateMachine, outFile + Mode.cpp.ToExtension(), Mode.cpp, config);
+                    }
+                    break;
+                default:
+                    ExportSingleMode(stateMachine, config.output ?? sourceFile + config.mode.ToExtension(), config.mode, config);
+                    break;
                 }
-                break;
-            default:
-                ExportSingleMode(stateMachine, config.output ?? sourceFile + config.mode.ToExtension(), config.mode, config);
-                break;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                Environment.Exit(2);
             }
         }
 

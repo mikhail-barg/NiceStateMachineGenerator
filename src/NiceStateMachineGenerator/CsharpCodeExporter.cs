@@ -594,7 +594,7 @@ namespace NiceStateMachineGenerator
             }
         }
 
-        private const string STATES_ENUM_NAME = "States";
+        private const string STATES_ENUM_NAME = "State";
 
         private const string HEADER_CODE =
 @"

@@ -212,27 +212,33 @@ namespace NiceStateMachineGenerator
                             this.m_writer.WriteLine($"case {STATES_ENUM_NAME}.{state.Name}:");
                             ++this.m_writer.Indent;
                             {
-                                foreach (EdgeDescr edge in state.TimerEdges.Values)
+                                if (state.TimerEdges.Values.Count > 0)
                                 {
-                                    this.m_writer.WriteLine($"if (timer == this.{edge.InvokerName})");
+                                    foreach (EdgeDescr edge in state.TimerEdges.Values)
+                                    {
+                                        this.m_writer.WriteLine($"if (timer == this.{edge.InvokerName})");
+                                        this.m_writer.WriteLine("{");
+                                        {
+                                            ++this.m_writer.Indent;
+                                            WriteEdgeTraverse(state, edge);
+                                            --this.m_writer.Indent;
+                                        }
+                                        this.m_writer.WriteLine("}");
+                                        this.m_writer.WriteLine("else ");
+                                    }
                                     this.m_writer.WriteLine("{");
                                     {
                                         ++this.m_writer.Indent;
-                                        WriteEdgeTraverse(state, edge);
+                                        this.m_writer.WriteLine($"throw new Exception(\"Unexpected timer finish in state {state.Name}. Timer was \" + timer);");
                                         --this.m_writer.Indent;
                                     }
                                     this.m_writer.WriteLine("}");
-                                    this.m_writer.Write("else ");
+                                    this.m_writer.WriteLine("break;");
                                 }
-                                this.m_writer.WriteLine();
-                                this.m_writer.WriteLine("{");
+                                else
                                 {
-                                    ++this.m_writer.Indent;
                                     this.m_writer.WriteLine($"throw new Exception(\"Unexpected timer finish in state {state.Name}. Timer was \" + timer);");
-                                    --this.m_writer.Indent;
-                                }
-                                this.m_writer.WriteLine("}");
-                                this.m_writer.WriteLine("break;");
+                                };
                             }
                             this.m_writer.WriteLine();
                             --this.m_writer.Indent;

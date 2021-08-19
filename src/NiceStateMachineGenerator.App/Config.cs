@@ -11,6 +11,7 @@ namespace NiceStateMachineGenerator.App
         public string? config { get; set; } = null; //this config =)
 
         public string? output { get; set; } = null;
+        public string? out_common { get; set; } = null;
         public Mode mode { get; set; } = Mode.validate;
 
         public GraphwizExporter.Settings graphwiz { get; set; } = new GraphwizExporter.Settings();

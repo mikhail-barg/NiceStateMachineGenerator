@@ -38,13 +38,19 @@ namespace NiceStateMachineGenerator.App
                 case Mode.all:
                     {
                         string outFile = config.output ?? sourceFile;
-                        ExportSingleMode(stateMachine, outFile + Mode.dot.ToExtension(), Mode.dot, config);
-                        ExportSingleMode(stateMachine, outFile + Mode.cs.ToExtension(), Mode.cs, config);
-                        ExportSingleMode(stateMachine, outFile + Mode.cpp.ToExtension(), Mode.cpp, config);
+                        ExportSingleMode(stateMachine, outFile + Mode.dot.ToExtension(), config.out_common, Mode.dot, config);
+                        ExportSingleMode(stateMachine, outFile + Mode.cs.ToExtension(), config.out_common, Mode.cs, config);
+                        ExportSingleMode(stateMachine, outFile + Mode.cpp.ToExtension(), config.out_common, Mode.cpp, config);
                     }
                     break;
                 default:
-                    ExportSingleMode(stateMachine, config.output ?? sourceFile + config.mode.ToExtension(), config.mode, config);
+                    ExportSingleMode(
+                        stateMachine, 
+                        config.output ?? sourceFile + config.mode.ToExtension(), 
+                        config.out_common,
+                        config.mode, 
+                        config
+                    );
                     break;
                 }
             }
@@ -55,7 +61,7 @@ namespace NiceStateMachineGenerator.App
             }
         }
 
-        private static void ExportSingleMode(StateMachineDescr stateMachine, string outFileName, Mode mode, Config config)
+        private static void ExportSingleMode(StateMachineDescr stateMachine, string outFileName, string? outCommonCodeFileName, Mode mode, Config config)
         {
             Console.WriteLine($"Writing output for mode {mode} to {outFileName}");
             switch (mode)
@@ -64,7 +70,7 @@ namespace NiceStateMachineGenerator.App
                 GraphwizExporter.Export(stateMachine, outFileName, config.graphwiz);
                 break;
             case Mode.cs:
-                CsharpCodeExporter.Export(stateMachine, outFileName, config.c_sharp);
+                CsharpCodeExporter.Export(stateMachine, outFileName, outCommonCodeFileName, config.c_sharp);
                 break;
             case Mode.cpp:
                 CppCodeExporter.Export(stateMachine, outFileName, config.cpp);
@@ -87,6 +93,8 @@ namespace NiceStateMachineGenerator.App
             Console.WriteLine($"\t\tIf not specified then <input file name>.<mode-specific extension> is used.");
             Console.WriteLine($"\t\tIn case of 'all' mode specific extensions are added to <output file name>.");
             Console.WriteLine($"\t\tIngnored for 'validate' mode.");
+            Console.WriteLine($"-t/--out_common <output file name for common code> : output file name for common code (e.g. Timer interface definition).");
+            Console.WriteLine($"\t\tIf empty, null, or not specified, the code is written to main output file");
             Console.WriteLine($"Also any option for exporter may be overriden via cmdline args. Nesting is specified by ':'");
             Console.WriteLine($"\t\tE.g.: '--c_sharp:ClassName=MyClass' or '--cpp:NamespaceName ns'");
         }
@@ -101,6 +109,7 @@ namespace NiceStateMachineGenerator.App
             {
                 { "-c", "config" },
                 { "-o", "output" },
+                { "-t", "out_common"},
                 { "-m", "mode" },
             };
             builder.AddCommandLine(args, switchMappings);

@@ -63,7 +63,7 @@ namespace NiceStateMachineGenerator.App
 
         private static void ExportSingleMode(StateMachineDescr stateMachine, string outFileName, string? outCommonCodeFileName, Mode mode, Config config)
         {
-            Console.WriteLine($"Writing output for mode {mode} to {outFileName}");
+            Console.WriteLine($"Writing output for mode {mode} to {outFileName} (common code in {(outCommonCodeFileName == null? "the same file" : outCommonCodeFileName)})");
             switch (mode)
             {
             case Mode.dot:

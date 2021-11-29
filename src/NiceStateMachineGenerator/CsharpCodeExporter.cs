@@ -20,6 +20,9 @@ namespace NiceStateMachineGenerator
             public List<string>? AdditionalUsings { get; set; }
 
             public string? CommonCodeNamespace { get; set; } = null; //same as NamespaceName
+            public bool NullableReferenceTypes { get; set; } = false;
+
+            internal string NullableQuantifier => this.NullableReferenceTypes ? "?" : "";
         }
 
         public static void Export(StateMachineDescr stateMachine, string stateMachineFileName, string? commonCodeFileName, Settings settings)
@@ -162,6 +165,7 @@ namespace NiceStateMachineGenerator
             {
                 ++this.m_mainCodeWriter.Indent;
                 this.m_mainCodeWriter.WriteLine("CheckNotDisposed();");
+                this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"SetState: \" + state);");
                 this.m_mainCodeWriter.WriteLine("switch (state)");
                 this.m_mainCodeWriter.WriteLine("{");
                 {
@@ -212,6 +216,7 @@ namespace NiceStateMachineGenerator
             {
                 ++this.m_mainCodeWriter.Indent;
                 this.m_mainCodeWriter.WriteLine("CheckNotDisposed();");
+                this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"Event: {@event.Name}\");");
                 this.m_mainCodeWriter.WriteLine("switch (this.CurrentState)");
                 this.m_mainCodeWriter.WriteLine("{");
                 {
@@ -269,6 +274,7 @@ namespace NiceStateMachineGenerator
                                         this.m_mainCodeWriter.WriteLine("{");
                                         {
                                             ++this.m_mainCodeWriter.Indent;
+                                            this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"OnTimer: {edge.InvokerName}\");");
                                             WriteEdgeTraverse(state, edge);
                                             --this.m_mainCodeWriter.Indent;
                                         }
@@ -343,6 +349,7 @@ namespace NiceStateMachineGenerator
                 ++this.m_mainCodeWriter.Indent;
                 this.m_mainCodeWriter.WriteLine("CheckNotDisposed();");
                 WriteStateEnterCode(this.m_stateMachine.States[this.m_stateMachine.StartState]);
+                this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"Start\");");
                 --this.m_mainCodeWriter.Indent;
             }
             this.m_mainCodeWriter.WriteLine("}");
@@ -412,6 +419,7 @@ namespace NiceStateMachineGenerator
         private void WriteFieldsAndConstructorDestructor()
         {
             this.m_mainCodeWriter.WriteLine($"private bool m_isDisposed = false;");
+            this.m_mainCodeWriter.WriteLine($"private readonly Action<string>{this.m_settings.NullableQuantifier} m_logAction;");
 
             foreach (string timer in this.m_stateMachine.Timers.Keys)
             {
@@ -426,10 +434,11 @@ namespace NiceStateMachineGenerator
             this.m_mainCodeWriter.WriteLine();
             this.m_mainCodeWriter.WriteLine($"public {STATES_ENUM_NAME} CurrentState {{ get; private set; }} = {STATES_ENUM_NAME}.{this.m_stateMachine.StartState};");
             this.m_mainCodeWriter.WriteLine();
-            this.m_mainCodeWriter.WriteLine($"public {this.m_settings.ClassName}(CreateTimerDelegate createTimer)");
+            this.m_mainCodeWriter.WriteLine($"public {this.m_settings.ClassName}(CreateTimerDelegate createTimer, Action<string>{this.m_settings.NullableQuantifier} logAction = null)");
             this.m_mainCodeWriter.WriteLine("{");
             {
                 ++this.m_mainCodeWriter.Indent;
+                this.m_mainCodeWriter.WriteLine($"this.m_logAction = logAction;");
                 foreach (string timer in this.m_stateMachine.Timers.Keys)
                 {
                     this.m_mainCodeWriter.WriteLine($"this.{timer} = createTimer(\"{timer}\", this.OnTimer);");
@@ -562,9 +571,9 @@ namespace NiceStateMachineGenerator
         {
             if (comment != null)
             {
-                this.m_mainCodeWriter.Write("/*");
+                this.m_mainCodeWriter.Write("/**<summary>");
                 this.m_mainCodeWriter.Write(comment); //could be an injection )
-                this.m_mainCodeWriter.WriteLine("*/");
+                this.m_mainCodeWriter.WriteLine("</summary>*/");
             }
         }
 

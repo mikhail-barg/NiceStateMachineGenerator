@@ -69,7 +69,11 @@ namespace NiceStateMachineGenerator
                     }
                     if (settings.ShowStateEnterEvents && state.NeedOnEnterEvent)
                     {
-                        writer.Write("| on_enter ");
+                        writer.Write("| \\-\\> ");
+                        if (state.OnEnterEventComment != null)
+                        {
+                            writer.Write(state.OnEnterEventComment);
+                        }
                     }
                     writer.Write("}\"");
                     if (state.IsFinal)

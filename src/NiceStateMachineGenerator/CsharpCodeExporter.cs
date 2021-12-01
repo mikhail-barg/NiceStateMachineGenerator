@@ -164,7 +164,7 @@ namespace NiceStateMachineGenerator
             this.m_mainCodeWriter.WriteLine("{");
             {
                 ++this.m_mainCodeWriter.Indent;
-                this.m_mainCodeWriter.WriteLine("CheckNotDisposed();");
+                this.WriteExitIfDisposed();
                 this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"SetState: \" + state);");
                 this.m_mainCodeWriter.WriteLine("switch (state)");
                 this.m_mainCodeWriter.WriteLine("{");
@@ -199,6 +199,19 @@ namespace NiceStateMachineGenerator
             this.m_mainCodeWriter.WriteLine();
         }
 
+        private void WriteExitIfDisposed()
+        {
+            this.m_mainCodeWriter.WriteLine("if (this.m_isDisposed)");
+            this.m_mainCodeWriter.WriteLine("{");
+            ++this.m_mainCodeWriter.Indent;
+            {
+                this.m_mainCodeWriter.WriteLine("return;");
+            }
+            --this.m_mainCodeWriter.Indent;
+            this.m_mainCodeWriter.WriteLine("}");
+            this.m_mainCodeWriter.WriteLine();
+        }
+
         private void WriteProcessEvent(EventDescr @event)
         {
             this.m_mainCodeWriter.Write($"public void ProcessEvent__{@event.Name}(");
@@ -215,7 +228,7 @@ namespace NiceStateMachineGenerator
             this.m_mainCodeWriter.WriteLine("{");
             {
                 ++this.m_mainCodeWriter.Indent;
-                this.m_mainCodeWriter.WriteLine("CheckNotDisposed();");
+                this.WriteExitIfDisposed();
                 this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"Event: {@event.Name}\");");
                 this.m_mainCodeWriter.WriteLine("switch (this.CurrentState)");
                 this.m_mainCodeWriter.WriteLine("{");
@@ -255,7 +268,7 @@ namespace NiceStateMachineGenerator
             this.m_mainCodeWriter.WriteLine("{");
             {
                 ++this.m_mainCodeWriter.Indent;
-                this.m_mainCodeWriter.WriteLine("CheckNotDisposed();");
+                this.WriteExitIfDisposed();
                 this.m_mainCodeWriter.WriteLine("switch (this.CurrentState)");
                 this.m_mainCodeWriter.WriteLine("{");
                 {
@@ -347,7 +360,7 @@ namespace NiceStateMachineGenerator
             this.m_mainCodeWriter.WriteLine("{");
             {
                 ++this.m_mainCodeWriter.Indent;
-                this.m_mainCodeWriter.WriteLine("CheckNotDisposed();");
+                this.WriteExitIfDisposed();
                 WriteStateEnterCode(this.m_stateMachine.States[this.m_stateMachine.StartState]);
                 this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"Start\");");
                 --this.m_mainCodeWriter.Indent;
@@ -461,23 +474,6 @@ namespace NiceStateMachineGenerator
                         this.m_mainCodeWriter.WriteLine($"this.{timer}.Dispose();");
                     }
                     this.m_mainCodeWriter.WriteLine($"this.m_isDisposed = true;");
-                    --this.m_mainCodeWriter.Indent;
-                }
-                this.m_mainCodeWriter.WriteLine("}");
-                --this.m_mainCodeWriter.Indent;
-            }
-            this.m_mainCodeWriter.WriteLine("}");
-            this.m_mainCodeWriter.WriteLine();
-
-            this.m_mainCodeWriter.WriteLine($"private void CheckNotDisposed()");
-            this.m_mainCodeWriter.WriteLine("{");
-            {
-                ++this.m_mainCodeWriter.Indent;
-                this.m_mainCodeWriter.WriteLine("if (this.m_isDisposed)");
-                this.m_mainCodeWriter.WriteLine("{");
-                {
-                    ++this.m_mainCodeWriter.Indent;
-                    this.m_mainCodeWriter.WriteLine($"throw new ObjectDisposedException(\"{this.m_settings.ClassName}\");");
                     --this.m_mainCodeWriter.Indent;
                 }
                 this.m_mainCodeWriter.WriteLine("}");

@@ -288,7 +288,7 @@ namespace NiceStateMachineGenerator
                 }
                 this.m_writer.WriteLine("); }");
             };
-            if (edge.TargetState != null)
+            if (edge.TargetState != null && !edge.HandleEventWithoutChangingState)
             {
                 this.m_writer.WriteLine($"SetState({STATES_ENUM_NAME}::{edge.TargetState});");
             }

@@ -233,18 +233,28 @@ namespace NiceStateMachineGenerator
 
             stateDescr.TimerEdges = ParseEdges(json, "on_timer", handledTokens, this.m_timerNames, isTimer: true);
             stateDescr.EventEdges = ParseEdges(json, "on_event", handledTokens, this.m_eventNames, isTimer: false);
+            if (stateDescr?.EventEdges?.Values != null)
+            {
+                foreach (EdgeDescr edge in stateDescr.EventEdges.Values)
+                {
+                    if (edge.GoesBackWithNoEnterEvent)
+                    {
+                        edge.TargetState = stateDescr.Name;
+                    }
+                }
+            }
 
             string? nextStateName = ParserHelper.GetJString(json, "next_state", handledTokens, out JToken? nextStateToken, required : false);
             if (nextStateName != null)
             {
-                stateDescr.NextStateName = nextStateName;
+                stateDescr!.NextStateName = nextStateName;
                 if (!this.m_stateNames.Contains(stateDescr.NextStateName))
                 {
                     throw new ParseValidationException(nextStateToken, $"Unknown next state name '{stateDescr.NextStateName}'");
                 }
-            };
+            }
 
-            stateDescr.IsFinal = ParserHelper.GetJBoolWithDefault(json, "final", false, handledTokens);
+            stateDescr!.IsFinal = ParserHelper.GetJBoolWithDefault(json, "final", false, handledTokens);
 
             //sanity check
             {
@@ -337,10 +347,14 @@ namespace NiceStateMachineGenerator
             HashSet<string> handledTokens = new HashSet<string>();
 
             string targetStateName = ParserHelper.GetJStringRequired(description, "state", handledTokens, out JToken targetStateNameToken);
-            if (!this.m_stateNames.Contains(targetStateName))
+            if (String.Equals(targetStateName, "null", StringComparison.InvariantCultureIgnoreCase))
+            {
+                edge.GoesBackWithNoEnterEvent = true;
+            }
+            else if (!this.m_stateNames.Contains(targetStateName))
             {
                 throw new ParseValidationException(targetStateNameToken, $"Unknown target state name '{targetStateName}'");
-            };
+            }
             edge.TargetState = targetStateName;
 
             JToken? traverseEventsToken = ParserHelper.GetJToken(description, "on_traverse", handledTokens, required: false);

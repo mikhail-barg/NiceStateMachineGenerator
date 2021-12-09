@@ -234,7 +234,7 @@ namespace NiceStateMachineGenerator
                         EventDescr eventDescr = this.m_stateMachine.Events[@event];
                         if (!eventDescr.OnlyOnce || !newState.onetimeEventFiredMask[eventIndex])
                         {
-                            //event is avaliable to traverse
+                            //event is available to traverse
                             if (state.EventEdges == null || !state.EventEdges.TryGetValue(@event, out EdgeDescr? edge))
                             {
                                 throw new LogicValidationException($"In state {stateName} event {@event} is NOT specified while it's enabled and available. Path: {PrintPath(steps, edges)}");

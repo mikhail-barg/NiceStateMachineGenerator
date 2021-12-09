@@ -231,18 +231,8 @@ namespace NiceStateMachineGenerator
                 throw new ParseValidationException(commentToken, "On enter comment is specified, but no event required");
             }
 
-            stateDescr.TimerEdges = ParseEdges(json, "on_timer", handledTokens, this.m_timerNames, isTimer: true);
-            stateDescr.EventEdges = ParseEdges(json, "on_event", handledTokens, this.m_eventNames, isTimer: false);
-            if (stateDescr?.EventEdges?.Values != null)
-            {
-                foreach (EdgeDescr edge in stateDescr.EventEdges.Values)
-                {
-                    if (edge.GoesBackWithNoEnterEvent)
-                    {
-                        edge.TargetState = stateDescr.Name;
-                    }
-                }
-            }
+            stateDescr.TimerEdges = ParseEdges(json, "on_timer", handledTokens, this.m_timerNames, stateDescr.Name, isTimer: true);
+            stateDescr.EventEdges = ParseEdges(json, "on_event", handledTokens, this.m_eventNames, stateDescr.Name, isTimer: false);
 
             string? nextStateName = ParserHelper.GetJString(json, "next_state", handledTokens, out JToken? nextStateToken, required : false);
             if (nextStateName != null)
@@ -287,7 +277,7 @@ namespace NiceStateMachineGenerator
             ParserHelper.CheckAllTokensHandled(json, handledTokens);
         }
 
-        private Dictionary<string, EdgeDescr>? ParseEdges(JObject json, string tokenName, HashSet<string> handledTokens, HashSet<string> knownNames, bool isTimer)
+        private Dictionary<string, EdgeDescr>? ParseEdges(JObject json, string tokenName, HashSet<string> handledTokens, HashSet<string> knownNames, string sourceStateName,  bool isTimer)
         {
             JObject? container = ParserHelper.GetJObject(json, tokenName, handledTokens, required: false);
             if (container == null)
@@ -331,7 +321,7 @@ namespace NiceStateMachineGenerator
                     }
                     break;
                 case JTokenType.Object:
-                    ParseEdge(edge, (JObject)property.Value);
+                    ParseEdge(edge, (JObject)property.Value, sourceStateName);
                     break;
                 default:
                     throw new ParseValidationException(property.Value, "Unexpected edge type");
@@ -342,25 +332,29 @@ namespace NiceStateMachineGenerator
             return edges;
         }
 
-        private void ParseEdge(EdgeDescr edge, JObject description)
+        private void ParseEdge(EdgeDescr edge, JObject description, string sourceStateName)
         {
             HashSet<string> handledTokens = new HashSet<string>();
 
-            string targetStateName = ParserHelper.GetJStringRequired(description, "state", handledTokens, out JToken targetStateNameToken);
-            if (String.Equals(targetStateName, "null", StringComparison.InvariantCultureIgnoreCase))
+            string? targetStateName = ParserHelper.GetJString(description, "state", handledTokens, out JToken? targetStateNameToken, false);
+            if (targetStateNameToken?.Type == JTokenType.Null)
             {
                 edge.GoesBackWithNoEnterEvent = true;
+                edge.TargetState = sourceStateName;
             }
-            else if (!this.m_stateNames.Contains(targetStateName))
+            else if (!this.m_stateNames.Contains(targetStateName!))
             {
                 throw new ParseValidationException(targetStateNameToken, $"Unknown target state name '{targetStateName}'");
             }
-            edge.TargetState = targetStateName;
+            else
+            {
+                edge.TargetState = targetStateName;
+            }
 
             JToken? traverseEventsToken = ParserHelper.GetJToken(description, "on_traverse", handledTokens, required: false);
             ParseOnTraverseEvents(edge.OnTraverseEventTypes, traverseEventsToken);
 
-            if (edge.TargetState == null && edge.OnTraverseEventTypes.Count > 0)
+            if (edge.TargetState == null && edge.OnTraverseEventTypes.Count > 0 && !edge.GoesBackWithNoEnterEvent)
             {
                 throw new ParseValidationException(description, "Edge has no next_state (null), but requires on_traverse event. This is not supported");
             };

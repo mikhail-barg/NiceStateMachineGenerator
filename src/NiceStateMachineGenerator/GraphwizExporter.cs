@@ -135,6 +135,10 @@ namespace NiceStateMachineGenerator
             {
                 writer.Write("[style = dashed]");
             }
+            else if (edgeDescr.GoesBackWithNoEnterEvent)
+            {
+                writer.Write("[style = dotted]");
+            }
             writer.WriteLine(";");
         }
     }

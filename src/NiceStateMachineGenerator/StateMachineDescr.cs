@@ -52,6 +52,10 @@ namespace NiceStateMachineGenerator
         public readonly HashSet<EdgeTraverseCallbackType> OnTraverseEventTypes = new HashSet<EdgeTraverseCallbackType>();
         public string? TraverseEventComment { get; set; }
         public string? TargetState { get; set; }
+        /// <summary>
+        /// True, in case if transition event should go back to parent state, without re-invoking OnEnter event.
+        /// </summary>
+        public bool GoesBackWithNoEnterEvent { get; set; }
         public bool IsFailure { get; set; }
 
         public EdgeDescr(string invokerName, bool isTimer)

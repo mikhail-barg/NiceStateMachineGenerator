@@ -339,7 +339,7 @@ namespace NiceStateMachineGenerator
             string? targetStateName = ParserHelper.GetJString(description, "state", handledTokens, out JToken? targetStateNameToken, false);
             if (targetStateNameToken?.Type == JTokenType.Null)
             {
-                edge.GoesBackWithNoEnterEvent = true;
+                edge.HandleEventWithoutChangingState = true;
                 edge.TargetState = sourceStateName;
             }
             else if (!this.m_stateNames.Contains(targetStateName!))
@@ -354,7 +354,7 @@ namespace NiceStateMachineGenerator
             JToken? traverseEventsToken = ParserHelper.GetJToken(description, "on_traverse", handledTokens, required: false);
             ParseOnTraverseEvents(edge.OnTraverseEventTypes, traverseEventsToken);
 
-            if (edge.TargetState == null && edge.OnTraverseEventTypes.Count > 0 && !edge.GoesBackWithNoEnterEvent)
+            if (edge.TargetState == null && edge.OnTraverseEventTypes.Count > 0 && !edge.HandleEventWithoutChangingState)
             {
                 throw new ParseValidationException(description, "Edge has no next_state (null), but requires on_traverse event. This is not supported");
             };

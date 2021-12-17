@@ -52,32 +52,50 @@ namespace NiceStateMachineGenerator
             };
         }
 
-
-        /*
         private void CheckEventsConsistency()
         {
-            string callbackName = ComposeEdgeTraveseCallback(callbackType, state, edge, out bool needArgs, out bool isFunction);
-            HashSet<string> usedTimers = new HashSet<string>();
+            Dictionary<string, bool> declaredEventCallbacks = new Dictionary<string, bool>();
+
             foreach (StateDescr state in this.m_stateMachine.States.Values)
             {
-                foreach (string timer in state.StartTimers.Keys)
+                if (state.EventEdges != null)
                 {
-                    usedTimers.Add(timer);
+                    foreach (EdgeDescr edge in state.EventEdges.Values)
+                    {
+                        foreach (EdgeTraverseCallbackType callbackType in edge.OnTraverseEventTypes)
+                        {
+                            CheckEventConsistency(state, edge, callbackType, declaredEventCallbacks);
+                        }
+                    }
+                }
+                if (state.TimerEdges != null)
+                {
+                    foreach (EdgeDescr edge in state.TimerEdges.Values)
+                    {
+                        foreach (EdgeTraverseCallbackType callbackType in edge.OnTraverseEventTypes)
+                        {
+                            CheckEventConsistency(state, edge, callbackType, declaredEventCallbacks);
+                        }
+                    }
                 }
             }
-
-            List<string> unusedTimers = this.m_timers
-                .Except(usedTimers)
-                .OrderBy(s => s)
-                .ToList();
-
-            if (unusedTimers.Count > 0)
-            {
-                throw new LogicValidationException($"Timers that are declared but never started: {String.Join(", ", unusedTimers)}");
-            }
         }
-        */
 
+        private void CheckEventConsistency(StateDescr state, EdgeDescr edge, EdgeTraverseCallbackType callbackType, Dictionary<string, bool> declaredEventCallbacks)
+        {
+            string callbackName = ExportHelper.ComposeEdgeTraveseCallbackName(callbackType, state, edge, out _, out bool isFunction);
+            if (declaredEventCallbacks.TryGetValue(callbackName, out bool oldCallbackIsFunction))
+            {
+                if (oldCallbackIsFunction != isFunction)
+                {
+                    throw new LogicValidationException($"Event '{callbackName}' was already defined as both regular and functional (sub edge). This is forbidden");
+                }
+            }
+            else
+            {
+                declaredEventCallbacks.Add(callbackName, isFunction);
+            };
+        }
 
         private void CheckUnusedTimers()
         {

@@ -274,31 +274,102 @@ namespace NiceStateMachineGenerator
         {
             foreach (EdgeTraverseCallbackType callbackType in edge.OnTraverseEventTypes)
             {
-                string callbackName = ComposeEdgeTraveseCallback(callbackType, state, edge, out bool needArgs);
-                this.m_writer.Write($"if ({callbackName}) {{ {callbackName}(");
-                if (needArgs)
+                string callbackName = ExportHelper.ComposeEdgeTraveseCallbackName(callbackType, state, edge, out bool needArgs, out bool isFunction);
+
+                if (!isFunction)
                 {
-                    EventDescr @event = this.m_stateMachine.Events[edge.InvokerName];
-                    for (int i = 0; i < @event.Args.Count; ++i)
-                    {
-                        KeyValuePair<string, string> arg = @event.Args[i];
-                        if (i != 0)
-                        {
-                            this.m_writer.Write(", ");
-                        }
-                        this.m_writer.Write(arg.Key);
-                    }
+                    //regular callback code
+                    this.m_writer.Write($"if ({callbackName}) {{ {callbackName}(");
+                    WriteEdgeTraverseCallbackArgs(needArgs, edge);
+                    this.m_writer.WriteLine("); }");
                 }
-                this.m_writer.WriteLine("); }");
+                else
+                {
+                    //functions are for choosing next state based on result
+                    if (edge.Targets == null)
+                    {
+                        throw new Exception("Should not happen! Check parser!");
+                    };
+
+                    this.m_writer.WriteLine("{"); //visibility guard
+                    ++this.m_writer.Indent;
+                    {
+                        this.m_writer.Write($"std::optional<{STATES_ENUM_NAME}> nextState = {callbackName}(");
+                        WriteEdgeTraverseCallbackArgs(needArgs, edge);
+                        this.m_writer.WriteLine(");");
+
+                        this.m_writer.WriteLine($"if (nextState)");
+                        this.m_writer.WriteLine("{");
+                        ++this.m_writer.Indent;
+                        {
+                            this.m_writer.WriteLine($"switch (*nextState)");
+                            this.m_writer.WriteLine("{");
+                            {
+                                foreach (KeyValuePair<string, EdgeTarget> subEdge in edge.Targets)
+                                {
+                                    if (subEdge.Value.TargetType == EdgeTargetType.state)
+                                    {
+                                        this.m_writer.WriteLine($"case {STATES_ENUM_NAME}::{subEdge.Value.StateName}:");
+                                        ++this.m_writer.Indent;
+                                        this.m_writer.WriteLine($"/*{subEdge.Key}*/");
+                                        this.m_writer.WriteLine($"SetState({STATES_ENUM_NAME}::{subEdge.Value.StateName});");
+                                        this.m_writer.WriteLine($"break;");
+                                        --this.m_writer.Indent;
+                                    }
+                                };
+                                this.m_writer.WriteLine($"default:");
+                                ++this.m_writer.Indent;
+                                this.m_writer.WriteLine("throw std::runtime_error(\"Unexpected target state was chosen by callback function " + callbackName + "\");");
+                                --this.m_writer.Indent;
+                            }
+                            this.m_writer.WriteLine("}"); //switch
+                        }
+                        --this.m_writer.Indent;
+                        this.m_writer.WriteLine("}"); //if has value
+
+                    }
+                    --this.m_writer.Indent;
+                    this.m_writer.WriteLine("}"); //visibility guard
+                }
             };
-            //TODO:
-            throw new NotImplementedException();
-            /*
-            if (edge.TargetState != null && !edge.HandleEventWithoutChangingState)
+
+            throwsException = false;
+            //only happens in case of no function
+            if (edge.Target != null)
             {
-                this.m_writer.WriteLine($"SetState({STATES_ENUM_NAME}::{edge.TargetState});");
+                switch (edge.Target.TargetType)
+                {
+                case EdgeTargetType.state:
+                    this.m_writer.WriteLine($"SetState({STATES_ENUM_NAME}::{edge.Target.StateName});");
+                    break;
+                case EdgeTargetType.failure:
+                    this.m_writer.WriteLine($"throw std::runtime_error(\"Event {edge.InvokerName} is forbidden in current state\");");
+                    throwsException = true;
+                    break;
+                case EdgeTargetType.no_change:
+                    //notnhing to do
+                    break;
+                default:
+                    throw new Exception("Unexpected type " + edge.Target.TargetType);
+                }
             }
-            */
+        }
+
+        private void WriteEdgeTraverseCallbackArgs(bool needArgs, EdgeDescr edge)
+        {
+            if (needArgs)
+            {
+                EventDescr @event = this.m_stateMachine.Events[edge.InvokerName];
+                for (int i = 0; i < @event.Args.Count; ++i)
+                {
+                    KeyValuePair<string, string> arg = @event.Args[i];
+                    if (i != 0)
+                    {
+                        this.m_writer.Write(", ");
+                    }
+                    this.m_writer.Write(arg.Key);
+                }
+            }
         }
 
         private void WriteStart()
@@ -452,70 +523,6 @@ namespace NiceStateMachineGenerator
             this.m_writer.WriteLine("");
         }
 
-        private static string ComposeEdgeTraveseCallback(EdgeTraverseCallbackType callbackType, StateDescr source, EdgeDescr edge, out bool eventNeedArgs)
-        {
-            //TODO:
-            throw new NotImplementedException();
-            
-            /*
-
-            StringBuilder builder = new StringBuilder();
-            builder.Append(edge.IsTimer ? "OnTimerTraverse__" : "OnEventTraverse__");
-            switch (callbackType)
-            {
-            case EdgeTraverseCallbackType.full:
-                builder.Append(source.Name);
-                builder.Append("__");
-                builder.Append(edge.InvokerName);
-                builder.Append("__");
-                builder.Append(edge.TargetState);
-                eventNeedArgs = !edge.IsTimer;
-                break;
-
-            case EdgeTraverseCallbackType.event_only:
-                builder.Append(edge.InvokerName);
-                eventNeedArgs = !edge.IsTimer;
-                break;
-
-            case EdgeTraverseCallbackType.event_and_target:
-                builder.Append(edge.InvokerName);
-                builder.Append("__");
-                builder.Append(edge.TargetState);
-                eventNeedArgs = !edge.IsTimer;
-                break;
-
-            case EdgeTraverseCallbackType.source_and_event:
-                builder.Append(source.Name);
-                builder.Append("__");
-                builder.Append(edge.InvokerName);
-                eventNeedArgs = !edge.IsTimer;
-                break;
-
-            case EdgeTraverseCallbackType.source_and_target:
-                builder.Append(source.Name);
-                builder.Append("__");
-                builder.Append(edge.TargetState);
-                eventNeedArgs = false;
-                break;
-
-            case EdgeTraverseCallbackType.source_only:
-                builder.Append(source.Name);
-                eventNeedArgs = false;
-                break;
-
-            case EdgeTraverseCallbackType.target_only:
-                builder.Append(edge.TargetState);
-                eventNeedArgs = false;
-                break;
-
-            default:
-                throw new ApplicationException("Unexpected type " + callbackType);
-            }
-
-            return builder.ToString();
-            */
-        }
-
         private static string ComposeStateEnterCallback(StateDescr state)
         {
             return $"OnStateEnter__{state.Name}";
@@ -544,7 +551,7 @@ namespace NiceStateMachineGenerator
             }
             this.m_writer.WriteLine();
 
-            HashSet<string> declaredEventCallbacks = new HashSet<string>();
+            Dictionary<string, bool> declaredEventCallbacks = new Dictionary<string, bool>();    //callback name -> is function callback
             foreach (StateDescr state in this.m_stateMachine.States.Values)
             {
                 if (state.EventEdges != null)
@@ -553,33 +560,7 @@ namespace NiceStateMachineGenerator
                     {
                         foreach (EdgeTraverseCallbackType callbackType in edge.OnTraverseEventTypes)
                         {
-                            string callbackName = ComposeEdgeTraveseCallback(callbackType, state, edge, out bool needArgs);
-                            if (!declaredEventCallbacks.Add(callbackName))
-                            {
-                                continue;
-                            }
-
-                            WriteCommentIfSpecified(edge.TraverseEventComment);
-                            
-                            EventDescr @event = this.m_stateMachine.Events[edge.InvokerName];
-                            if (!needArgs || @event.Args.Count == 0)
-                            {
-                                this.m_writer.WriteLine($"std::function<void()> {callbackName};");
-                            }
-                            else
-                            {
-                                this.m_writer.Write($"std::function<void(");
-                                for (int i = 0; i < @event.Args.Count; ++i)
-                                {
-                                    KeyValuePair<string, string> arg = @event.Args[i];
-                                    if (i != 0)
-                                    {
-                                        this.m_writer.Write(", ");
-                                    };
-                                    this.m_writer.Write($"{arg.Value}");
-                                }
-                                this.m_writer.WriteLine($")> {callbackName}; ");
-                            }
+                            WriteCallbackEvent(state, edge, callbackType, declaredEventCallbacks);
                         }
                     }
                 }
@@ -589,18 +570,51 @@ namespace NiceStateMachineGenerator
                     {
                         foreach (EdgeTraverseCallbackType callbackType in edge.OnTraverseEventTypes)
                         {
-                            string callbackName = ComposeEdgeTraveseCallback(callbackType, state, edge, out _);
-                            if (!declaredEventCallbacks.Add(callbackName))
-                            {
-                                continue;
-                            }
-                            WriteCommentIfSpecified(edge.TraverseEventComment);
-                            this.m_writer.WriteLine($"std::function<void()> {callbackName};");
+                            WriteCallbackEvent(state, edge, callbackType, declaredEventCallbacks);
                         }
                     }
                 }
             }
             this.m_writer.WriteLine();
+        }
+
+        private void WriteCallbackEvent(StateDescr state, EdgeDescr edge, EdgeTraverseCallbackType callbackType, Dictionary<string, bool> declaredEventCallbacks)
+        {
+            string callbackName = ExportHelper.ComposeEdgeTraveseCallbackName(callbackType, state, edge, out bool needArgs, out bool isFunction);
+            if (declaredEventCallbacks.TryGetValue(callbackName, out bool oldCallbackIsFunction))
+            {
+                if (oldCallbackIsFunction != isFunction)
+                {
+                    throw new Exception("should not happen! check validator!");
+                }
+                return;
+            }
+            else
+            {
+                declaredEventCallbacks.Add(callbackName, isFunction);
+            };
+            WriteCommentIfSpecified(edge.TraverseEventComment);
+            EventDescr @event = this.m_stateMachine.Events[edge.InvokerName];
+
+            needArgs = needArgs && (@event.Args.Count > 0);
+
+            this.m_writer.Write($"std::function<");
+            this.m_writer.Write(isFunction ? $"std::optional<{STATES_ENUM_NAME}>" : "void");
+            if (needArgs)
+            {
+                this.m_writer.Write("(");
+                for (int i = 0; i < @event.Args.Count; ++i)
+                {
+                    KeyValuePair<string, string> arg = @event.Args[i];
+                    if (i != 0)
+                    {
+                        this.m_writer.Write(", ");
+                    };
+                    this.m_writer.Write($"{arg.Value}");
+                }
+                this.m_writer.Write(")");
+            };
+            this.m_writer.WriteLine($"> {callbackName}; ");
         }
 
         private static Regex s_splitRegex = new Regex(@"\r?\n", RegexOptions.Compiled);
@@ -620,6 +634,7 @@ namespace NiceStateMachineGenerator
 
 #include <stdexcept>
 #include <functional>
+#include <optional>
 
 ";
 

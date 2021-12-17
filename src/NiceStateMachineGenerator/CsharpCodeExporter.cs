@@ -334,7 +334,7 @@ namespace NiceStateMachineGenerator
         {
             foreach (EdgeTraverseCallbackType callbackType in edge.OnTraverseEventTypes)
             {
-                string callbackName = ComposeEdgeTraveseCallback(callbackType, state, edge, out bool needArgs, out bool isFunction);
+                string callbackName = ExportHelper.ComposeEdgeTraveseCallbackName(callbackType, state, edge, out bool needArgs, out bool isFunction);
 
                 if (!isFunction)
                 {
@@ -354,8 +354,7 @@ namespace NiceStateMachineGenerator
                     this.m_mainCodeWriter.WriteLine("{"); //visibility guard
                     ++this.m_mainCodeWriter.Indent;
                     {
-                        this.m_mainCodeWriter.Write($"{STATES_ENUM_NAME}? nextState = ");
-                        this.m_mainCodeWriter.Write($"{callbackName}.Invoke(");
+                        this.m_mainCodeWriter.Write($"{STATES_ENUM_NAME}? nextState = {callbackName}.Invoke(");
                         WriteEdgeTraverseCallbackArgs(needArgs, edge);
                         this.m_mainCodeWriter.WriteLine(");");
 
@@ -581,87 +580,6 @@ namespace NiceStateMachineGenerator
             this.m_mainCodeWriter.WriteLine("");
         }
 
-        private static string ComposeEdgeTraveseCallback(EdgeTraverseCallbackType callbackType, StateDescr source, EdgeDescr edge, out bool eventMayHaveArgs, out bool eventIsFunction)
-        {
-            StringBuilder builder = new StringBuilder();
-            builder.Append(edge.IsTimer ? "OnTimerTraverse__" : "OnEventTraverse__");
-            switch (callbackType)
-            {
-            case EdgeTraverseCallbackType.full:
-                builder.Append(source.Name);
-                builder.Append("__");
-                builder.Append(edge.InvokerName);
-                builder.Append("__");
-                if (edge.Target == null || edge.Targets != null)
-                {
-                    throw new Exception("Should not happen, check parser!");
-                };
-                builder.Append(edge.Target.StateName ?? source.Name);   //in case of no_change
-                eventMayHaveArgs = !edge.IsTimer;
-                eventIsFunction = false;
-                break;
-
-            case EdgeTraverseCallbackType.event_only:
-                builder.Append(edge.InvokerName);
-                eventMayHaveArgs = !edge.IsTimer;
-                eventIsFunction = edge.Targets != null;
-                break;
-
-            case EdgeTraverseCallbackType.event_and_target:
-                builder.Append(edge.InvokerName);
-                builder.Append("__");
-                if (edge.Target == null || edge.Targets != null)
-                {
-                    throw new Exception("Should not happen, check parser!");
-                };
-                builder.Append(edge.Target.StateName ?? source.Name);   //in case of no_change
-                eventMayHaveArgs = !edge.IsTimer;
-                eventIsFunction = false;
-                break;
-
-            case EdgeTraverseCallbackType.source_and_event:
-                builder.Append(source.Name);
-                builder.Append("__");
-                builder.Append(edge.InvokerName);
-                eventMayHaveArgs = !edge.IsTimer;
-                eventIsFunction = edge.Targets != null;
-                break;
-
-            case EdgeTraverseCallbackType.source_and_target:
-                builder.Append(source.Name);
-                builder.Append("__");
-                if (edge.Target == null || edge.Targets != null)
-                {
-                    throw new Exception("Should not happen, check parser!");
-                };
-                builder.Append(edge.Target.StateName ?? source.Name);   //in case of no_change
-                eventMayHaveArgs = false;
-                eventIsFunction = false;
-                break;
-
-            case EdgeTraverseCallbackType.source_only:
-                builder.Append(source.Name);
-                eventMayHaveArgs = false;
-                eventIsFunction = edge.Targets != null;
-                break;
-
-            case EdgeTraverseCallbackType.target_only:
-                if (edge.Target == null || edge.Targets != null)
-                {
-                    throw new Exception("Should not happen, check parser!");
-                };
-                builder.Append(edge.Target.StateName ?? source.Name);   //in case of no_change
-                eventMayHaveArgs = false;
-                eventIsFunction = false;
-                break;
-
-            default:
-                throw new ApplicationException("Unexpected type " + callbackType);
-            }
-
-            return builder.ToString();
-        }
-
         private static string ComposeStateEnterCallback(StateDescr state)
         {
             return $"OnStateEnter__{state.Name}";
@@ -719,7 +637,7 @@ namespace NiceStateMachineGenerator
 
         private void WriteCallbackEvent(StateDescr state, EdgeDescr edge, EdgeTraverseCallbackType callbackType, Dictionary<string, bool> declaredEventCallbacks)
         {
-            string callbackName = ComposeEdgeTraveseCallback(callbackType, state, edge, out bool needArgs, out bool isFunction);
+            string callbackName = ExportHelper.ComposeEdgeTraveseCallbackName(callbackType, state, edge, out bool needArgs, out bool isFunction);
             if (declaredEventCallbacks.TryGetValue(callbackName, out bool oldCallbackIsFunction))
             {
                 if (oldCallbackIsFunction != isFunction)

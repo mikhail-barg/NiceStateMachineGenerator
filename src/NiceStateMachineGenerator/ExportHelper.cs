@@ -21,7 +21,7 @@ namespace NiceStateMachineGenerator
             return className;
         }
 
-        internal static string ComposeEdgeTraveseCallback(EdgeTraverseCallbackType callbackType, StateDescr source, EdgeDescr edge, out bool eventMayHaveArgs, out bool eventIsFunction)
+        internal static string ComposeEdgeTraveseCallbackName(EdgeTraverseCallbackType callbackType, StateDescr source, EdgeDescr edge, out bool eventMayHaveArgs, out bool eventIsFunction)
         {
             StringBuilder builder = new StringBuilder();
             builder.Append(edge.IsTimer ? "OnTimerTraverse__" : "OnEventTraverse__");

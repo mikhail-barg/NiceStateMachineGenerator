@@ -188,8 +188,11 @@ namespace NiceStateMachineGenerator
                             this.m_writer.WriteLine($"case {STATES_ENUM_NAME}::{state.Name}:");
                             ++this.m_writer.Indent;
                             {
-                                WriteEdgeTraverse(state, edge);
-                                this.m_writer.WriteLine("break;");
+                                WriteEdgeTraverse(state, edge, out bool throwsException);
+                                if (!throwsException)
+                                {
+                                    this.m_writer.WriteLine("break;");
+                                }
                             }
                             this.m_writer.WriteLine();
                             --this.m_writer.Indent;
@@ -232,7 +235,7 @@ namespace NiceStateMachineGenerator
                                     this.m_writer.WriteLine("{");
                                     {
                                         ++this.m_writer.Indent;
-                                        WriteEdgeTraverse(state, edge);
+                                        WriteEdgeTraverse(state, edge, out _);
                                         --this.m_writer.Indent;
                                     }
                                     this.m_writer.WriteLine("}");
@@ -267,7 +270,7 @@ namespace NiceStateMachineGenerator
             this.m_writer.WriteLine();
         }
 
-        private void WriteEdgeTraverse(StateDescr state, EdgeDescr edge)
+        private void WriteEdgeTraverse(StateDescr state, EdgeDescr edge, out bool throwsException)
         {
             foreach (EdgeTraverseCallbackType callbackType in edge.OnTraverseEventTypes)
             {
@@ -288,10 +291,14 @@ namespace NiceStateMachineGenerator
                 }
                 this.m_writer.WriteLine("); }");
             };
+            //TODO:
+            throw new NotImplementedException();
+            /*
             if (edge.TargetState != null && !edge.HandleEventWithoutChangingState)
             {
                 this.m_writer.WriteLine($"SetState({STATES_ENUM_NAME}::{edge.TargetState});");
             }
+            */
         }
 
         private void WriteStart()
@@ -447,6 +454,11 @@ namespace NiceStateMachineGenerator
 
         private static string ComposeEdgeTraveseCallback(EdgeTraverseCallbackType callbackType, StateDescr source, EdgeDescr edge, out bool eventNeedArgs)
         {
+            //TODO:
+            throw new NotImplementedException();
+            
+            /*
+
             StringBuilder builder = new StringBuilder();
             builder.Append(edge.IsTimer ? "OnTimerTraverse__" : "OnEventTraverse__");
             switch (callbackType)
@@ -501,6 +513,7 @@ namespace NiceStateMachineGenerator
             }
 
             return builder.ToString();
+            */
         }
 
         private static string ComposeStateEnterCallback(StateDescr state)

@@ -115,31 +115,52 @@ namespace NiceStateMachineGenerator
             writer.WriteLine("}");
         }
 
-        private static void WriteEdge(TextWriter writer, StateDescr sourceState, EdgeDescr edgeDescr, Settings settings)
+        private static void WriteEdge(TextWriter writer, StateDescr sourceState, EdgeDescr edgeDescr, EdgeTarget edgeTarget, string? comment, Settings settings)
         {
-            if (edgeDescr.TargetState == null)
+            if (edgeTarget.TargetType == EdgeTargetType.failure)
+            {
+                return;
+            }
+            else if (edgeTarget.TargetType == EdgeTargetType.no_change && edgeDescr.OnTraverseEventTypes.Count == 0)
             {
                 return;
             };
+
             string label = edgeDescr.InvokerName;
             if (settings.ShowEdgeTraverseEvents && edgeDescr.OnTraverseEventTypes.Count > 0)
             {
-                label += $"\n(on_traverse: {String.Join(", ", edgeDescr.OnTraverseEventTypes.Select(s => s.ToString()).OrderBy(s => s))})";
+                label += $"\n[{String.Join(", ", edgeDescr.OnTraverseEventTypes.Select(s => s.ToString()).OrderBy(s => s))}]";
             };
-            if (settings.ShowEdgeTraverseComments && edgeDescr.TraverseEventComment != null)
+            if (settings.ShowEdgeTraverseComments && comment != null)
             {
-                label += $"\n/* {edgeDescr.TraverseEventComment} */";
+                label += $" -> {edgeDescr.TraverseEventComment}";
             };
-            writer.Write($"{sourceState.Name} -> {edgeDescr.TargetState} [label = \"{label}\"]");
+            writer.Write($"{sourceState.Name} -> {edgeTarget.StateName ?? sourceState.Name} [label = \"{label}\"]");
             if (edgeDescr.IsTimer)
             {
                 writer.Write("[style = dashed]");
             }
-            else if (edgeDescr.HandleEventWithoutChangingState)
+            else if (edgeTarget.TargetType == EdgeTargetType.no_change)
             {
                 writer.Write("[style = dotted]");
             }
             writer.WriteLine(";");
+        }
+
+
+        private static void WriteEdge(TextWriter writer, StateDescr sourceState, EdgeDescr edgeDescr, Settings settings)
+        {
+            if (edgeDescr.Target != null)
+            {
+                WriteEdge(writer, sourceState, edgeDescr, edgeDescr.Target, edgeDescr.TraverseEventComment, settings);
+            }
+            else if (edgeDescr.Targets != null)
+            {
+                foreach (KeyValuePair<string, EdgeTarget> subEdge in edgeDescr.Targets)
+                {
+                    WriteEdge(writer, sourceState, edgeDescr, subEdge.Value, subEdge.Key, settings);
+                }
+            };
         }
     }
 }

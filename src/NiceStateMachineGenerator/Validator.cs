@@ -11,8 +11,9 @@ namespace NiceStateMachineGenerator
         public static void Validate(StateMachineDescr stateMachine)
         {
             Validator validator = new Validator(stateMachine);
-            validator.Validate();
+            validator.ValidatePaths();
             validator.CheckUnusedTimers();
+            validator.CheckEventsConsistency();
         }
 
         private readonly StateMachineDescr m_stateMachine;
@@ -51,6 +52,33 @@ namespace NiceStateMachineGenerator
             };
         }
 
+
+        /*
+        private void CheckEventsConsistency()
+        {
+            string callbackName = ComposeEdgeTraveseCallback(callbackType, state, edge, out bool needArgs, out bool isFunction);
+            HashSet<string> usedTimers = new HashSet<string>();
+            foreach (StateDescr state in this.m_stateMachine.States.Values)
+            {
+                foreach (string timer in state.StartTimers.Keys)
+                {
+                    usedTimers.Add(timer);
+                }
+            }
+
+            List<string> unusedTimers = this.m_timers
+                .Except(usedTimers)
+                .OrderBy(s => s)
+                .ToList();
+
+            if (unusedTimers.Count > 0)
+            {
+                throw new LogicValidationException($"Timers that are declared but never started: {String.Join(", ", unusedTimers)}");
+            }
+        }
+        */
+
+
         private void CheckUnusedTimers()
         {
             HashSet<string> usedTimers = new HashSet<string>();
@@ -73,7 +101,7 @@ namespace NiceStateMachineGenerator
             }
         }
 
-        private void Validate()
+        private void ValidatePaths()
         {
             this.Dfs(CreateBeforeStartState(), this.m_stateMachine.StartState, null, new Stack<ExecutionState>(), new Stack<string>());
 
@@ -90,7 +118,7 @@ namespace NiceStateMachineGenerator
                     {
                         if (!this.m_traversedEdges.Contains(edge))
                         {
-                            errors.Add($"Unusable edge: {state.Name} [event: {edge.InvokerName}] -> {edge.TargetState}");
+                            errors.Add($"Unusable edge: {state.Name} [event: {edge.InvokerName}] -> {(edge.Target?.ToString() ?? "(multiple states)")}");
                         }
                     }
                 };
@@ -100,7 +128,7 @@ namespace NiceStateMachineGenerator
                     {
                         if (!this.m_traversedEdges.Contains(edge))
                         {
-                            errors.Add($"Unusable edge: {state.Name} [timer: {edge.InvokerName}] -> {edge.TargetState}");
+                            errors.Add($"Unusable edge: {state.Name} [timer: {edge.InvokerName}] -> {(edge.Target?.ToString() ?? "(multiple states)")}");
                         }
                     }
                 }
@@ -242,12 +270,16 @@ namespace NiceStateMachineGenerator
                             else
                             {
                                 this.m_traversedEdges.Add(edge);
-                                if (edge.TargetState != null)
+                                if (edge.Target != null)
                                 {
-                                    traversedSomething = true;
-                                    edges.Push($"[event: {edge.InvokerName}]");
-                                    Dfs(newState, edge.TargetState, eventIndex, steps, edges);
-                                    edges.Pop();
+                                    DfsForEdgeTarget(edge, edge.Target, ref traversedSomething, newState, eventIndex, steps, edges);
+                                }
+                                else if (edge.Targets != null)
+                                {
+                                    foreach (KeyValuePair<string, EdgeTarget> subEdge in edge.Targets)
+                                    {
+                                        DfsForEdgeTarget(edge, subEdge.Value, ref traversedSomething, newState, eventIndex, steps, edges);
+                                    }
                                 }
                             }
                         }
@@ -276,12 +308,16 @@ namespace NiceStateMachineGenerator
                         else
                         {
                             this.m_traversedEdges.Add(edge);
-                            if (edge.TargetState != null)
+                            if (edge.Target != null)
                             {
-                                traversedSomething = true;
-                                edges.Push($"[timer: {edge.InvokerName}]");
-                                Dfs(newState, edge.TargetState, null, steps, edges);
-                                edges.Pop();
+                                DfsForEdgeTarget(edge, edge.Target, ref traversedSomething, newState, null, steps, edges);
+                            }
+                            else if (edge.Targets != null)
+                            {
+                                foreach (KeyValuePair<string, EdgeTarget> subEdge in edge.Targets)
+                                {
+                                    DfsForEdgeTarget(edge, subEdge.Value, ref traversedSomething, newState, null, steps, edges);
+                                }
                             }
                         }
                     }
@@ -293,6 +329,23 @@ namespace NiceStateMachineGenerator
             }
 
             steps.Pop();
+        }
+
+
+        private void DfsForEdgeTarget(EdgeDescr edge, EdgeTarget target, ref bool traversedSomething, ExecutionState prevState, int? entryEventIndex, Stack<ExecutionState> steps, Stack<string> edges)
+        {
+            if (target.TargetType != EdgeTargetType.state)
+            {
+                return;
+            };
+            if (target.StateName == null)
+            {
+                throw new Exception("Should not happen");
+            };
+            traversedSomething = true;
+            edges.Push($"[{(edge.IsTimer? "timer": "event")}: {edge.InvokerName}]");
+            Dfs(prevState, target.StateName, entryEventIndex, steps, edges);
+            edges.Pop();
         }
 
         private static string PrintPath(Stack<ExecutionState> steps, Stack<string> edges)

@@ -300,28 +300,12 @@ namespace NiceStateMachineGenerator
                 switch (property.Value.Type)
                 {
                 case JTokenType.Null:
-                    edge.TargetState = null;
-                    break;
                 case JTokenType.String:
-                    edge.TargetState = ParserHelper.CheckAndConvertToString(property.Value, "edge target");
-                    if (!this.m_stateNames.Contains(edge.TargetState))
-                    {
-                        throw new ParseValidationException(property.Value, $"Unknown target state name '{edge.TargetState}'");
-                    };
-                    break;
                 case JTokenType.Boolean:
-                    {
-                        bool value = (bool)property.Value;
-                        if (value != false)
-                        {
-                            throw new ParseValidationException(property.Value, "Only false could be specified as a failure edge value");
-                        };
-                        edge.TargetState = null;
-                        edge.IsFailure = true;
-                    }
+                    edge.Target = ParseEdgeTarget(property.Value);
                     break;
                 case JTokenType.Object:
-                    ParseEdge(edge, (JObject)property.Value, sourceStateName);
+                    ParseEdgeDetailed(edge, (JObject)property.Value, sourceStateName);
                     break;
                 default:
                     throw new ParseValidationException(property.Value, "Unexpected edge type");
@@ -332,35 +316,109 @@ namespace NiceStateMachineGenerator
             return edges;
         }
 
-        private void ParseEdge(EdgeDescr edge, JObject description, string sourceStateName)
+        private EdgeTarget ParseEdgeTarget(JToken token)
+        {
+            switch (token.Type)
+            {
+            case JTokenType.Null:
+                return EdgeTarget.CreateNoChangeTarget();
+            case JTokenType.String:
+                string stateName = ParserHelper.CheckAndConvertToString(token, "edge target");
+                if (!this.m_stateNames.Contains(stateName))
+                {
+                    throw new ParseValidationException(token, $"Unknown target state name '{stateName}'");
+                };
+                return EdgeTarget.CreateStateTarget(stateName);
+            case JTokenType.Boolean:
+                {
+                    bool value = (bool)token;
+                    if (value != false)
+                    {
+                        throw new ParseValidationException(token, "Only 'false' could be specified as a failure edge value");
+                    };
+                    return EdgeTarget.CreateFailureTarget();
+                }
+            default:
+                throw new ParseValidationException(token, $"Unexpected edge target type: {token.Type}. Only Null, String or Boolean are allowed");
+            }
+        }
+
+        private void ParseEdgeDetailed(EdgeDescr edge, JObject description, string sourceStateName)
         {
             HashSet<string> handledTokens = new HashSet<string>();
 
             string? targetStateName = ParserHelper.GetJString(description, "state", handledTokens, out JToken? targetStateNameToken, false);
-            if (targetStateNameToken?.Type == JTokenType.Null)
+            JObject? targetStates = ParserHelper.GetJObject(description, "states", handledTokens, false);
+            if (targetStateName != null && targetStates != null)
             {
-                edge.HandleEventWithoutChangingState = true;
-                edge.TargetState = sourceStateName;
+                throw new ParseValidationException(description, "Only one of 'state' and 'states' properties mey be scpecified for an edge.");
             }
-            else if (!this.m_stateNames.Contains(targetStateName!))
+            else if (targetStateName == null && targetStates == null)
             {
-                throw new ParseValidationException(targetStateNameToken, $"Unknown target state name '{targetStateName}'");
+                edge.Target = EdgeTarget.CreateNoChangeTarget();
             }
-            else
+            else if (targetStateName != null)
             {
-                edge.TargetState = targetStateName;
+                if (!this.m_stateNames.Contains(targetStateName))
+                {
+                    throw new ParseValidationException(targetStateNameToken, $"Unknown target state name '{targetStateName}'");
+                };
+                edge.Target = EdgeTarget.CreateStateTarget(targetStateName);
+            }
+            else if (targetStates != null)
+            {
+                if (targetStates.Count == 0)
+                {
+                    throw new ParseValidationException(targetStates, "Empty 'states' object.");
+                };
+                Dictionary<string, EdgeTarget> subEdges = new Dictionary<string, EdgeTarget>();
+                HashSet<EdgeTarget> targets = new HashSet<EdgeTarget>();
+                foreach (JProperty prop in targetStates.Properties())
+                {
+                    string comment = prop.Name;
+                    EdgeTarget target = ParseEdgeTarget(prop.Value);
+                    if (!targets.Add(target))
+                    {
+                        throw new ParseValidationException(prop.Value, $"Duplicated sub-edge target specified: {target}");
+                    }
+                    else if (subEdges.ContainsKey(comment))
+                    {
+                        throw new ParseValidationException(prop, $"Duplicated sub-edge comment '{comment}'. Please choose distinct comments for sub-edges");
+                    }
+                    else if (target.TargetType == EdgeTargetType.failure)
+                    {
+                        throw new ParseValidationException(prop, $"There's no meaning in specifying failure ('false') for sub-edge.");
+                    };
+                    subEdges.Add(comment, target);
+                };
+                edge.Targets = subEdges;
             }
 
             JToken? traverseEventsToken = ParserHelper.GetJToken(description, "on_traverse", handledTokens, required: false);
             ParseOnTraverseEvents(edge.OnTraverseEventTypes, traverseEventsToken);
 
-            if (edge.TargetState == null && edge.OnTraverseEventTypes.Count > 0 && !edge.HandleEventWithoutChangingState)
+            if (edge.Targets != null)
             {
-                throw new ParseValidationException(description, "Edge has no next_state (null), but requires on_traverse event. This is not supported");
+                if (edge.OnTraverseEventTypes.Count == 0)
+                {
+                    throw new ParseValidationException(targetStates, "Sub-edges mapping ('states') is only available as a result of on_traverse event, but it is not requested");
+                }
+                else if (edge.OnTraverseEventTypes.Count > 1)
+                {
+                    throw new ParseValidationException(targetStates, $"For an edge with sub-edges mapping ('states') only single on_traverse event type may be specified");
+                }
+                else if (
+                    edge.OnTraverseEventTypes.Contains(EdgeTraverseCallbackType.full)
+                    || edge.OnTraverseEventTypes.Contains(EdgeTraverseCallbackType.event_and_target)
+                    || edge.OnTraverseEventTypes.Contains(EdgeTraverseCallbackType.source_and_target)
+                    || edge.OnTraverseEventTypes.Contains(EdgeTraverseCallbackType.target_only)
+                )
+                {
+                    throw new ParseValidationException(targetStates, $"For an edge with sub-edges mapping ('states') on_traverse event type can not include target state (types '{EdgeTraverseCallbackType.event_and_target}', '{EdgeTraverseCallbackType.source_and_target}', '{EdgeTraverseCallbackType.target_only}' and '{EdgeTraverseCallbackType.full}' are forbiden)");
+                }
             };
 
             edge.TraverseEventComment = ParserHelper.GetJString(description, "on_traverse_comment", handledTokens, out JToken? commentToken, required: false);
-
             if (edge.TraverseEventComment != null && edge.OnTraverseEventTypes.Count == 0)
             {
                 throw new ParseValidationException(commentToken, "On traverse comment is specified, but no event required");

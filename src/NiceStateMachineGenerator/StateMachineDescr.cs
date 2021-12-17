@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace NiceStateMachineGenerator
 {
-    [Flags]
     public enum EdgeTraverseCallbackType
     {
         //FromState__EventOrTimer__ToState(args)
@@ -44,6 +43,79 @@ namespace NiceStateMachineGenerator
         }
     }
 
+    public enum EdgeTargetType
+    {
+        state,
+        no_change,
+        failure
+    }
+
+    public sealed class EdgeTarget: IEquatable<EdgeTarget>
+    {
+        public readonly EdgeTargetType TargetType;
+        public readonly string? StateName;
+
+        private EdgeTarget(EdgeTargetType targetType, string? stateName)
+        {
+            this.TargetType = targetType;
+            this.StateName = stateName;
+        }
+
+        public static EdgeTarget CreateNoChangeTarget()
+        {
+            return new EdgeTarget(EdgeTargetType.no_change, null);
+        }
+
+        public static EdgeTarget CreateFailureTarget()
+        {
+            return new EdgeTarget(EdgeTargetType.failure, null);
+        }
+
+        public static EdgeTarget CreateStateTarget(string stateName)
+        {
+            return new EdgeTarget(EdgeTargetType.state, stateName);
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return Equals(obj as EdgeTarget);
+        }
+
+        public bool Equals(EdgeTarget? other)
+        {
+            if (other == null)
+            {
+                return false;
+            }
+
+            return this.TargetType == other.TargetType
+                && String.Equals(this.StateName, other.StateName);
+        }
+
+        public override int GetHashCode()
+        {
+            int result = 17;
+            result = result * 11 + this.TargetType.GetHashCode();
+            result = result * 11 + (this.StateName?.GetHashCode() ?? 0);
+            return result;
+        }
+
+        public override string ToString()
+        {
+            switch (this.TargetType)
+            {
+            case EdgeTargetType.no_change:
+                return "null";
+            case EdgeTargetType.failure:
+                return "false";
+            case EdgeTargetType.state:
+                return this.StateName!;
+            default:
+                throw new Exception("Unexpected target type " + this.TargetType);
+            }
+        }
+    }
+
     public sealed class EdgeDescr
     {
         public readonly bool IsTimer;
@@ -51,12 +123,8 @@ namespace NiceStateMachineGenerator
 
         public readonly HashSet<EdgeTraverseCallbackType> OnTraverseEventTypes = new HashSet<EdgeTraverseCallbackType>();
         public string? TraverseEventComment { get; set; }
-        public string? TargetState { get; set; }
-        /// <summary>
-        /// True, in case if transition event should go back to parent state, without re-invoking OnEnter event.
-        /// </summary>
-        public bool HandleEventWithoutChangingState { get; set; }
-        public bool IsFailure { get; set; }
+        public EdgeTarget? Target { get; set; }
+        public Dictionary<string, EdgeTarget>? Targets { get; set; }
 
         public EdgeDescr(string invokerName, bool isTimer)
         {

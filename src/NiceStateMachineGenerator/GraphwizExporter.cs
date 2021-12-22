@@ -115,7 +115,7 @@ namespace NiceStateMachineGenerator
             writer.WriteLine("}");
         }
 
-        private static void WriteEdge(TextWriter writer, StateDescr sourceState, EdgeDescr edgeDescr, EdgeTarget edgeTarget, string? comment, Settings settings)
+        private static void WriteEdge(TextWriter writer, StateDescr sourceState, EdgeDescr edgeDescr, EdgeTarget edgeTarget, string? additionalComment, Settings settings)
         {
             if (edgeTarget.TargetType == EdgeTargetType.failure)
             {
@@ -131,9 +131,29 @@ namespace NiceStateMachineGenerator
             {
                 label += $"\n[{String.Join(", ", edgeDescr.OnTraverseEventTypes.Select(s => s.ToString()).OrderBy(s => s))}]";
             };
-            if (settings.ShowEdgeTraverseComments && comment != null)
+            if (settings.ShowEdgeTraverseComments)
             {
-                label += $" -> {edgeDescr.TraverseEventComment}";
+                string? comment;
+                if (edgeDescr.TraverseEventComment != null && additionalComment != null)
+                {
+                    comment = $"{edgeDescr.TraverseEventComment} -> {additionalComment}";
+                }
+                else if (edgeDescr.TraverseEventComment != null)
+                {
+                    comment = edgeDescr.TraverseEventComment;
+                }
+                else if (additionalComment != null)
+                {
+                    comment = additionalComment;
+                }
+                else
+                {
+                    comment = null;
+                };
+                if (comment != null)
+                {
+                    label += $" -> {comment}";
+                };
             };
             writer.Write($"{sourceState.Name} -> {edgeTarget.StateName ?? sourceState.Name} [label = \"{label}\"]");
             if (edgeDescr.IsTimer)
@@ -152,7 +172,7 @@ namespace NiceStateMachineGenerator
         {
             if (edgeDescr.Target != null)
             {
-                WriteEdge(writer, sourceState, edgeDescr, edgeDescr.Target, edgeDescr.TraverseEventComment, settings);
+                WriteEdge(writer, sourceState, edgeDescr, edgeDescr.Target, null, settings);
             }
             else if (edgeDescr.Targets != null)
             {

@@ -90,20 +90,27 @@ namespace NiceStateMachineGenerator
                 ++writer.Indent;
                 foreach (StateDescr state in stateMachine.States.Values)
                 {
+                    if (state.OnEnterEventAlluxTargets != null)
+                    {
+                        foreach ((string comment, EdgeTarget target) in state.OnEnterEventAlluxTargets)
+                        {
+                            WriteOnEnterEdge(writer, state, target, comment, settings);
+                        }
+                    };
                     if (state.EventEdges != null)
                     {
                         foreach (EdgeDescr edgeDescr in state.EventEdges.Values)
                         {
                             WriteEdge(writer, state, edgeDescr, settings);
                         }
-                    }
+                    };
                     if (state.TimerEdges != null)
                     {
                         foreach (EdgeDescr edgeDescr in state.TimerEdges.Values)
                         {
                             WriteEdge(writer, state, edgeDescr, settings);
                         }
-                    }
+                    };
                     if (state.NextStateName != null)
                     {
                         writer.WriteLine($"{state.Name} -> {state.NextStateName} [style = bold];");
@@ -113,6 +120,50 @@ namespace NiceStateMachineGenerator
             }
 
             writer.WriteLine("}");
+        }
+
+        private static void WriteOnEnterEdge(TextWriter writer, StateDescr sourceState, EdgeTarget edgeTarget, string additionalComment, Settings settings)
+        {
+            if (edgeTarget.TargetType == EdgeTargetType.failure)
+            {
+                return;
+            }
+            else if (edgeTarget.TargetType == EdgeTargetType.no_change)
+            {
+                return;
+            };
+
+            string label = "[on_enter]";
+            if (settings.ShowEdgeTraverseComments)
+            {
+                string? comment;
+                if (sourceState.OnEnterEventComment != null && additionalComment != null)
+                {
+                    comment = $"{sourceState.OnEnterEventComment} -> {additionalComment}";
+                }
+                else if (sourceState.OnEnterEventComment != null)
+                {
+                    comment = sourceState.OnEnterEventComment;
+                }
+                else if (additionalComment != null)
+                {
+                    comment = additionalComment;
+                }
+                else
+                {
+                    comment = null;
+                };
+                if (comment != null)
+                {
+                    label += $" -> {comment}";
+                };
+            };
+            writer.Write($"{sourceState.Name} -> {edgeTarget.StateName ?? sourceState.Name} [label = \"{label}\"]");
+            if (edgeTarget.TargetType == EdgeTargetType.no_change)
+            {
+                writer.Write("[style = dotted]");
+            }
+            writer.WriteLine(";");
         }
 
         private static void WriteEdge(TextWriter writer, StateDescr sourceState, EdgeDescr edgeDescr, EdgeTarget edgeTarget, string? additionalComment, Settings settings)

@@ -441,8 +441,8 @@ namespace NiceStateMachineGenerator
             {
                 ++this.m_mainCodeWriter.Indent;
                 this.WriteExitIfDisposed();
-                WriteStateEnterCode(this.m_stateMachine.States[this.m_stateMachine.StartState]);
                 this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"Start\");");
+                WriteStateEnterCode(this.m_stateMachine.States[this.m_stateMachine.StartState]);
                 --this.m_mainCodeWriter.Indent;
             }
             this.m_mainCodeWriter.WriteLine("}");
@@ -500,7 +500,53 @@ namespace NiceStateMachineGenerator
             if (state.NeedOnEnterEvent)
             {
                 string callbackName = ComposeStateEnterCallback(state);
-                this.m_mainCodeWriter.WriteLine($"{callbackName}?.Invoke();");
+                if (state.OnEnterEventAlluxTargets == null)
+                {
+                    //regular plain callback
+                    this.m_mainCodeWriter.WriteLine($"{callbackName}?.Invoke();");
+                }
+                else
+                {
+
+                    this.m_mainCodeWriter.WriteLine("{"); //visibility guard
+                    ++this.m_mainCodeWriter.Indent;
+                    {
+                        this.m_mainCodeWriter.WriteLine($"{STATES_ENUM_NAME}? nextState = {callbackName}.Invoke();");
+                        this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"OnEnter result: \" + (nextState?.ToString() ?? \"null\"));");
+
+                        this.m_mainCodeWriter.WriteLine($"if (nextState != null)");
+                        this.m_mainCodeWriter.WriteLine("{");
+                        ++this.m_mainCodeWriter.Indent;
+                        {
+                            this.m_mainCodeWriter.WriteLine($"switch (nextState.Value)");
+                            this.m_mainCodeWriter.WriteLine("{");
+                            {
+                                foreach (KeyValuePair<string, EdgeTarget> subEdge in state.OnEnterEventAlluxTargets)
+                                {
+                                    if (subEdge.Value.TargetType == EdgeTargetType.state)
+                                    {
+                                        this.m_mainCodeWriter.WriteLine($"case {STATES_ENUM_NAME}.{subEdge.Value.StateName}:");
+                                        ++this.m_mainCodeWriter.Indent;
+                                        this.m_mainCodeWriter.WriteLine($"/*{subEdge.Key}*/");
+                                        this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{subEdge.Value.StateName});");
+                                        this.m_mainCodeWriter.WriteLine($"break;");
+                                        --this.m_mainCodeWriter.Indent;
+                                    }
+                                };
+                                this.m_mainCodeWriter.WriteLine($"default:");
+                                ++this.m_mainCodeWriter.Indent;
+                                this.m_mainCodeWriter.WriteLine("throw new Exception(\"Unexpected target state \" + nextState.Value + \" was chosen by callback function " + callbackName + "\");");
+                                --this.m_mainCodeWriter.Indent;
+                            }
+                            this.m_mainCodeWriter.WriteLine("}"); //switch
+                        }
+                        --this.m_mainCodeWriter.Indent;
+                        this.m_mainCodeWriter.WriteLine("}"); //if has value
+
+                    }
+                    --this.m_mainCodeWriter.Indent;
+                    this.m_mainCodeWriter.WriteLine("}"); //visibility guard
+                }
             }
         }
 
@@ -603,7 +649,14 @@ namespace NiceStateMachineGenerator
                 {
                     string callbackName = ComposeStateEnterCallback(state);
                     WriteCommentIfSpecified(state.OnEnterEventComment);
-                    this.m_mainCodeWriter.WriteLine($"public event Action {callbackName};");
+                    if (state.OnEnterEventAlluxTargets == null)
+                    {
+                        this.m_mainCodeWriter.WriteLine($"public event Action {callbackName};");
+                    }
+                    else
+                    {
+                        this.m_mainCodeWriter.WriteLine($"public event Func<{STATES_ENUM_NAME}?> {callbackName};");
+                    }
                 }
             }
             this.m_mainCodeWriter.WriteLine();
@@ -723,3 +776,4 @@ public delegate ITimer CreateTimerDelegate(string timerName, TimerFiredCallback 
 
     }
 }
+

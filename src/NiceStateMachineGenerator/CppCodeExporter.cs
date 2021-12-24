@@ -436,7 +436,49 @@ namespace NiceStateMachineGenerator
             if (state.NeedOnEnterEvent)
             {
                 string callbackName = ComposeStateEnterCallback(state);
-                this.m_writer.WriteLine($"if ({callbackName}) {{ {callbackName}(); }}");
+                if (state.OnEnterEventAlluxTargets == null)
+                {
+                    //regular plain callback
+                    this.m_writer.WriteLine($"if ({callbackName}) {{ {callbackName}(); }}");
+                }
+                else
+                {
+                    this.m_writer.WriteLine("{"); //visibility guard
+                    ++this.m_writer.Indent;
+                    {
+                        this.m_writer.WriteLine($"std::optional<{STATES_ENUM_NAME}> nextState = {callbackName}();");
+                        this.m_writer.WriteLine($"if (nextState)");
+                        this.m_writer.WriteLine("{");
+                        ++this.m_writer.Indent;
+                        {
+                            this.m_writer.WriteLine($"switch (*nextState)");
+                            this.m_writer.WriteLine("{");
+                            {
+                                foreach (KeyValuePair<string, EdgeTarget> subEdge in state.OnEnterEventAlluxTargets)
+                                {
+                                    if (subEdge.Value.TargetType == EdgeTargetType.state)
+                                    {
+                                        this.m_writer.WriteLine($"case {STATES_ENUM_NAME}::{subEdge.Value.StateName}:");
+                                        ++this.m_writer.Indent;
+                                        this.m_writer.WriteLine($"/*{subEdge.Key}*/");
+                                        this.m_writer.WriteLine($"SetState({STATES_ENUM_NAME}::{subEdge.Value.StateName});");
+                                        this.m_writer.WriteLine($"break;");
+                                        --this.m_writer.Indent;
+                                    }
+                                };
+                                this.m_writer.WriteLine($"default:");
+                                ++this.m_writer.Indent;
+                                this.m_writer.WriteLine("throw std::runtime_error(\"Unexpected target state was chosen by callback function " + callbackName + "\");");
+                                --this.m_writer.Indent;
+                            }
+                            this.m_writer.WriteLine("}"); //switch
+                        }
+                        --this.m_writer.Indent;
+                        this.m_writer.WriteLine("}"); //if has value
+                    }
+                    --this.m_writer.Indent;
+                    this.m_writer.WriteLine("}"); //visibility guard
+                }
             }
         }
 
@@ -546,7 +588,14 @@ namespace NiceStateMachineGenerator
                 {
                     string callbackName = ComposeStateEnterCallback(state);
                     WriteCommentIfSpecified(state.OnEnterEventComment);
-                    this.m_writer.WriteLine($"std::function<void()> {callbackName};");
+                    if (state.OnEnterEventAlluxTargets == null)
+                    {
+                        this.m_writer.WriteLine($"std::function<void()> {callbackName};");
+                    }
+                    else
+                    {
+                        this.m_writer.WriteLine($"std::function<std::optional<{STATES_ENUM_NAME}>()> {callbackName};");
+                    }
                 }
             }
             this.m_writer.WriteLine();

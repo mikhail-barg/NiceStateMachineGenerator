@@ -223,7 +223,26 @@ namespace NiceStateMachineGenerator
             ParseStartTimersArray(stateDescr.StartTimers, json, "start_timers", handledTokens);
             ParseStopTimersArray(stateDescr.StopTimers, json, "stop_timers", handledTokens);
 
-            stateDescr.NeedOnEnterEvent = ParserHelper.GetJBoolWithDefault(json, "on_enter", false, handledTokens);
+            JToken? onEnterToken = ParserHelper.GetJToken(json, "on_enter", handledTokens, required: false);
+            if (onEnterToken == null)
+            {
+                stateDescr.NeedOnEnterEvent = false;
+            }
+            else
+            {
+                switch (onEnterToken.Type)
+                {
+                case JTokenType.Boolean:
+                    stateDescr.NeedOnEnterEvent = (bool)onEnterToken;
+                    break;
+                case JTokenType.Object:
+                    stateDescr.NeedOnEnterEvent = true;
+                    stateDescr.OnEnterEventAlluxTargets = ParseSubEdges((JObject)onEnterToken);
+                    break;
+                default:
+                    throw new ParseValidationException(onEnterToken, $"'on_enter' should be either Boolean or Object, got {onEnterToken.Type} ({onEnterToken.ToString(Newtonsoft.Json.Formatting.None)})");
+                }
+            }
             stateDescr.OnEnterEventComment = ParserHelper.GetJString(json, "on_enter_comment", handledTokens, out JToken? commentToken, required: false);
 
             if (stateDescr.OnEnterEventComment != null && !stateDescr.NeedOnEnterEvent)
@@ -371,27 +390,7 @@ namespace NiceStateMachineGenerator
                 {
                     throw new ParseValidationException(targetStates, "Empty 'states' object.");
                 };
-                Dictionary<string, EdgeTarget> subEdges = new Dictionary<string, EdgeTarget>();
-                HashSet<EdgeTarget> targets = new HashSet<EdgeTarget>();
-                foreach (JProperty prop in targetStates.Properties())
-                {
-                    string comment = prop.Name;
-                    EdgeTarget target = ParseEdgeTarget(prop.Value);
-                    if (!targets.Add(target))
-                    {
-                        throw new ParseValidationException(prop.Value, $"Duplicated sub-edge target specified: {target}");
-                    }
-                    else if (subEdges.ContainsKey(comment))
-                    {
-                        throw new ParseValidationException(prop, $"Duplicated sub-edge comment '{comment}'. Please choose distinct comments for sub-edges");
-                    }
-                    else if (target.TargetType == EdgeTargetType.failure)
-                    {
-                        throw new ParseValidationException(prop, $"There's no meaning in specifying failure ('false') for sub-edge.");
-                    };
-                    subEdges.Add(comment, target);
-                };
-                edge.Targets = subEdges;
+                edge.Targets = ParseSubEdges(targetStates);
             }
 
             JToken? traverseEventsToken = ParserHelper.GetJToken(description, "on_traverse", handledTokens, required: false);
@@ -425,6 +424,31 @@ namespace NiceStateMachineGenerator
             };
 
             ParserHelper.CheckAllTokensHandled(description, handledTokens);
+        }
+
+        private Dictionary<string, EdgeTarget> ParseSubEdges(JObject targetStates)
+        {
+            Dictionary<string, EdgeTarget> subEdges = new Dictionary<string, EdgeTarget>();
+            HashSet<EdgeTarget> targets = new HashSet<EdgeTarget>();
+            foreach (JProperty prop in targetStates.Properties())
+            {
+                string comment = prop.Name;
+                EdgeTarget target = ParseEdgeTarget(prop.Value);
+                if (!targets.Add(target))
+                {
+                    throw new ParseValidationException(prop.Value, $"Duplicated sub-edge target specified: {target}");
+                }
+                else if (subEdges.ContainsKey(comment))
+                {
+                    throw new ParseValidationException(prop, $"Duplicated sub-edge comment '{comment}'. Please choose distinct comments for sub-edges");
+                }
+                else if (target.TargetType == EdgeTargetType.failure)
+                {
+                    throw new ParseValidationException(prop, $"There's no meaning in specifying failure ('false') for sub-edge.");
+                };
+                subEdges.Add(comment, target);
+            };
+            return subEdges;
         }
 
         private void ParseOnTraverseEvents(HashSet<EdgeTraverseCallbackType> onTraverseEventTypes, JToken? traverseEventsToken)

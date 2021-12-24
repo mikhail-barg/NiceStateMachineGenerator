@@ -139,6 +139,7 @@ namespace NiceStateMachineGenerator
         
         public string? OnEnterEventComment { get; set; }
         public bool NeedOnEnterEvent { get; set; }
+        public Dictionary<string, EdgeTarget>? OnEnterEventAlluxTargets { get; set; }
         public readonly Dictionary<string, TimerStartDescr> StartTimers = new Dictionary<string, TimerStartDescr>();
         public readonly HashSet<string> StopTimers = new HashSet<string>();
 

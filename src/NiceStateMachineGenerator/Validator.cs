@@ -343,7 +343,24 @@ namespace NiceStateMachineGenerator
                 if (!traversedSomething)
                 {
                     throw new LogicValidationException($"Stall detected in state {stateName}. Path: {PrintPath(steps, edges)}");
-                }
+                };
+                if (state.OnEnterEventAlluxTargets != null)
+                {
+                    foreach (EdgeTarget target in state.OnEnterEventAlluxTargets.Values)
+                    {
+                        if (target.TargetType != EdgeTargetType.state)
+                        {
+                            return;
+                        };
+                        if (target.StateName == null)
+                        {
+                            throw new Exception("Should not happen");
+                        };
+                        edges.Push($"[on_enter]");
+                        Dfs(prevState, target.StateName, entryEventIndex, steps, edges);
+                        edges.Pop();
+                    }
+                };
             }
 
             steps.Pop();

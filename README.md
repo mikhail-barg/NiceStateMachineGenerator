@@ -35,7 +35,7 @@ We assume that the problem domain and the expected behavior may be described in 
 Some more details that are more features than assumptions:
 * If needed the SM may operate with `timers`. Timers fire specific `on_timer` event, most of the assumptions about regular events apply to timer events (especially ones about thread-safety).
 * The SM provide means to inform the outside world about changes happening in it — those are `callbacks`. There are two types of callbacks:
-  * States' `on_enter` callback, that is fired when the SM enters the state.
+  * State's `on_enter` callback, that is fired when the SM enters the state.
   * Event's `on_traverse` callback, that is fired when an event (or a timer event) takes place.
 * Events may have specific arguments. The SM does not assume anything about those arguments' meaning, it just passes arguments to the corresponding callback.
 
@@ -45,15 +45,16 @@ The DSL to describe state machines is based on JSON. See [samples folder](https:
 The State machine file is a plain JSON file consisting of a single root object with the following properties: 
 ```json
 {
-	"events": {
-		...
-	},
-	"timers": {
-	},
-	"start_state": "...",
-	"states": {
-		...
-	}
+  "events": {
+    ...
+  },
+  "timers": {
+    ...
+  },
+  "start_state": "...",
+  "states": {
+    ...
+  }
 }
 ```
 

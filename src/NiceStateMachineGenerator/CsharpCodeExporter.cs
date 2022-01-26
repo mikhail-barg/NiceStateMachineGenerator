@@ -165,7 +165,7 @@ namespace NiceStateMachineGenerator
             {
                 ++this.m_mainCodeWriter.Indent;
                 this.WriteExitIfDisposed();
-                this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"SetState: \" + state);");
+                this.m_mainCodeWriter.WriteLine($"this.OnLog?.Invoke(\"SetState: \" + state);");
                 this.m_mainCodeWriter.WriteLine("switch (state)");
                 this.m_mainCodeWriter.WriteLine("{");
                 {
@@ -229,7 +229,7 @@ namespace NiceStateMachineGenerator
             {
                 ++this.m_mainCodeWriter.Indent;
                 this.WriteExitIfDisposed();
-                this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"Event: {@event.Name}\");");
+                this.m_mainCodeWriter.WriteLine($"this.OnLog?.Invoke(\"Event: {@event.Name}\");");
                 this.m_mainCodeWriter.WriteLine("switch (this.CurrentState)");
                 this.m_mainCodeWriter.WriteLine("{");
                 {
@@ -290,7 +290,7 @@ namespace NiceStateMachineGenerator
                                         this.m_mainCodeWriter.WriteLine("{");
                                         {
                                             ++this.m_mainCodeWriter.Indent;
-                                            this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"OnTimer: {edge.InvokerName}\");");
+                                            this.m_mainCodeWriter.WriteLine($"this.OnLog?.Invoke(\"OnTimer: {edge.InvokerName}\");");
                                             WriteEdgeTraverse(state, edge, out _);
                                             --this.m_mainCodeWriter.Indent;
                                         }
@@ -358,7 +358,7 @@ namespace NiceStateMachineGenerator
                         WriteEdgeTraverseCallbackArgs(needArgs, edge);
                         this.m_mainCodeWriter.WriteLine(");");
 
-                        this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"OnTraverse result: {edge.InvokerName} -> \" + (nextState?.ToString() ?? \"null\"));");
+                        this.m_mainCodeWriter.WriteLine($"this.OnLog?.Invoke(\"OnTraverse result: {edge.InvokerName} -> \" + (nextState?.ToString() ?? \"null\"));");
 
                         this.m_mainCodeWriter.WriteLine($"if (nextState != null)");
                         this.m_mainCodeWriter.WriteLine("{");
@@ -441,7 +441,7 @@ namespace NiceStateMachineGenerator
             {
                 ++this.m_mainCodeWriter.Indent;
                 this.WriteExitIfDisposed();
-                this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"Start\");");
+                this.m_mainCodeWriter.WriteLine($"this.OnLog?.Invoke(\"Start\");");
                 WriteStateEnterCode(this.m_stateMachine.States[this.m_stateMachine.StartState]);
                 --this.m_mainCodeWriter.Indent;
             }
@@ -452,6 +452,7 @@ namespace NiceStateMachineGenerator
         private void WriteStateEnterCode(StateDescr state)
         {
             this.m_mainCodeWriter.WriteLine($"this.CurrentState = {STATES_ENUM_NAME}.{state.Name};");
+            this.m_mainCodeWriter.WriteLine($"this.OnStateEnter?.Invoke({STATES_ENUM_NAME}.{state.Name});");
 
             foreach (string timer in state.StopTimers)
             {
@@ -512,7 +513,7 @@ namespace NiceStateMachineGenerator
                     ++this.m_mainCodeWriter.Indent;
                     {
                         this.m_mainCodeWriter.WriteLine($"{STATES_ENUM_NAME}? nextState = {callbackName}.Invoke();");
-                        this.m_mainCodeWriter.WriteLine($"this.m_logAction?.Invoke(\"OnEnter result: \" + (nextState?.ToString() ?? \"null\"));");
+                        this.m_mainCodeWriter.WriteLine($"this.OnLog?.Invoke(\"OnEnter result: \" + (nextState?.ToString() ?? \"null\"));");
 
                         this.m_mainCodeWriter.WriteLine($"if (nextState != null)");
                         this.m_mainCodeWriter.WriteLine("{");
@@ -558,7 +559,8 @@ namespace NiceStateMachineGenerator
         private void WriteFieldsAndConstructorDestructor()
         {
             this.m_mainCodeWriter.WriteLine($"private bool m_isDisposed = false;");
-            this.m_mainCodeWriter.WriteLine($"private readonly Action<string>{this.m_settings.NullableQuantifier} m_logAction;");
+            this.m_mainCodeWriter.WriteLine($"public event Action<string> OnLog;");
+            this.m_mainCodeWriter.WriteLine($"public event Action<{STATES_ENUM_NAME}> OnStateEnter;");
 
             foreach (string timer in this.m_stateMachine.Timers.Keys)
             {
@@ -573,11 +575,10 @@ namespace NiceStateMachineGenerator
             this.m_mainCodeWriter.WriteLine();
             this.m_mainCodeWriter.WriteLine($"public {STATES_ENUM_NAME} CurrentState {{ get; private set; }} = {STATES_ENUM_NAME}.{this.m_stateMachine.StartState};");
             this.m_mainCodeWriter.WriteLine();
-            this.m_mainCodeWriter.WriteLine($"public {this.m_settings.ClassName}(CreateTimerDelegate createTimer, Action<string>{this.m_settings.NullableQuantifier} logAction = null)");
+            this.m_mainCodeWriter.WriteLine($"public {this.m_settings.ClassName}(CreateTimerDelegate createTimer)");
             this.m_mainCodeWriter.WriteLine("{");
             {
                 ++this.m_mainCodeWriter.Indent;
-                this.m_mainCodeWriter.WriteLine($"this.m_logAction = logAction;");
                 foreach (string timer in this.m_stateMachine.Timers.Keys)
                 {
                     this.m_mainCodeWriter.WriteLine($"this.{timer} = createTimer(\"{timer}\", this.OnTimer);");

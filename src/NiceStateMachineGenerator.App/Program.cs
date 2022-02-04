@@ -21,7 +21,9 @@ namespace NiceStateMachineGenerator.App
                 };
 
                 string sourceFile = args[0];
-                Config config = GetConfig(args.Skip(1).ToArray());
+                string[] arguments = args.Skip(1).ToArray();
+                ValidateArgs(arguments);
+                Config config = GetConfig(arguments);
 
                 Console.WriteLine("Reading state machine description from " + sourceFile);
                 StateMachineDescr stateMachine = Parser.ParseFile(sourceFile);
@@ -58,6 +60,21 @@ namespace NiceStateMachineGenerator.App
             {
                 Console.WriteLine(e);
                 Environment.Exit(2);
+            }
+        }
+
+        private static void ValidateArgs(string[] args)
+        {
+            Console.WriteLine("Parsing argument keys");
+            string[] keys = args.Where((c,i) => i % 2 == 0).ToArray();
+            if (keys.All(x => x.StartsWith("-")))
+            {
+                Console.WriteLine("Argument keys are correct");
+            }
+            else
+            {
+                Console.WriteLine("Could not parse keys, support: -c (configuration), -m (mode)");
+                Environment.Exit(1);
             }
         }
 

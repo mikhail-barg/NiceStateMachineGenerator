@@ -21,9 +21,7 @@ namespace NiceStateMachineGenerator.App
                 };
 
                 string sourceFile = args[0];
-                string[] arguments = args.Skip(1).ToArray();
-                ValidateArgs(arguments);
-                Config config = GetConfig(arguments);
+                Config config = GetConfig(args.Skip(1).ToArray());
 
                 Console.WriteLine("Reading state machine description from " + sourceFile);
                 StateMachineDescr stateMachine = Parser.ParseFile(sourceFile);
@@ -63,20 +61,6 @@ namespace NiceStateMachineGenerator.App
             }
         }
 
-        private static void ValidateArgs(string[] args)
-        {
-            Console.WriteLine("Parsing argument keys");
-            string[] keys = args.Where((c,i) => i % 2 == 0).ToArray();
-            if (keys.All(x => x.StartsWith("-")))
-            {
-                Console.WriteLine("Argument keys are correct");
-            }
-            else
-            {
-                Console.WriteLine("Could not parse keys, support: -c (configuration), -m (mode)");
-                Environment.Exit(1);
-            }
-        }
 
         private static void ExportSingleMode(StateMachineDescr stateMachine, string outFileName, string? outCommonCodeFileName, Mode mode, Config config)
         {
@@ -129,6 +113,7 @@ namespace NiceStateMachineGenerator.App
                 { "-t", "out_common"},
                 { "-m", "mode" },
             };
+            ValidateArgs(args, switchMappings);
             builder.AddCommandLine(args, switchMappings);
 
             //Config config = builder.Build().Get<Config>();
@@ -147,6 +132,31 @@ namespace NiceStateMachineGenerator.App
             };
 
             return config;
+        }
+        
+        private static void ValidateArgs(string[] args, Dictionary<string, string> validArguments)
+        {
+            Console.WriteLine("Parsing argument keys");
+            string[] keys = args.Where((c,i) => i % 2 == 0).ToArray();
+            if (keys.All(x => x.StartsWith("-")))
+            {
+                Console.WriteLine("Argument keys are correct");
+            }
+            else
+            {
+                string msg = "Could not parse keys, supported arguments: ";
+                msg += String.Join(", ", AsEnumerable(validArguments));
+                Console.WriteLine(msg);
+                Environment.Exit(1);
+            }
+        }
+
+        private static IEnumerable<string> AsEnumerable(Dictionary<string, string> dictionary)
+        {
+            foreach (KeyValuePair<string, string> pair in dictionary)
+            {
+                yield return $"{pair.Key} ({pair.Value})";
+            }
         }
 
         /*

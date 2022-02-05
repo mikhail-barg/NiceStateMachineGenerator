@@ -138,17 +138,19 @@ namespace NiceStateMachineGenerator.App
         {
             Console.WriteLine("Parsing argument keys");
             string[] keys = args.Where((c,i) => i % 2 == 0).ToArray();
-            if (keys.All(x => x.StartsWith("-")))
+
+            foreach (string key in keys)
             {
-                Console.WriteLine("Argument keys are correct");
+                if (!validArguments.ContainsKey(key))
+                {
+                    string msg = "Could not parse keys, supported arguments: ";
+                    msg += String.Join(", ", AsEnumerable(validArguments));
+                    Console.WriteLine(msg);
+                    Environment.Exit(1);
+                }
             }
-            else
-            {
-                string msg = "Could not parse keys, supported arguments: ";
-                msg += String.Join(", ", AsEnumerable(validArguments));
-                Console.WriteLine(msg);
-                Environment.Exit(1);
-            }
+            
+            Console.WriteLine("Argument keys are correct");
         }
 
         private static IEnumerable<string> AsEnumerable(Dictionary<string, string> dictionary)

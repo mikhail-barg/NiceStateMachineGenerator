@@ -61,6 +61,7 @@ namespace NiceStateMachineGenerator.App
             }
         }
 
+
         private static void ExportSingleMode(StateMachineDescr stateMachine, string outFileName, string? outCommonCodeFileName, Mode mode, Config config)
         {
             Console.WriteLine($"Writing output for mode {mode} to {outFileName} (common code in {(outCommonCodeFileName == null? "the same file" : outCommonCodeFileName)})");
@@ -112,6 +113,7 @@ namespace NiceStateMachineGenerator.App
                 { "-t", "out_common"},
                 { "-m", "mode" },
             };
+            ValidateArgs(args, switchMappings);
             builder.AddCommandLine(args, switchMappings);
 
             //Config config = builder.Build().Get<Config>();
@@ -130,6 +132,33 @@ namespace NiceStateMachineGenerator.App
             };
 
             return config;
+        }
+        
+        private static void ValidateArgs(string[] args, Dictionary<string, string> validArguments)
+        {
+            Console.WriteLine("Parsing argument keys");
+            string[] keys = args.Where((c,i) => i % 2 == 0).ToArray();
+
+            foreach (string key in keys)
+            {
+                if (!validArguments.ContainsKey(key))
+                {
+                    string msg = "Could not parse keys, supported arguments: ";
+                    msg += String.Join(", ", AsEnumerable(validArguments));
+                    Console.WriteLine(msg);
+                    Environment.Exit(1);
+                }
+            }
+            
+            Console.WriteLine("Argument keys are correct");
+        }
+
+        private static IEnumerable<string> AsEnumerable(Dictionary<string, string> dictionary)
+        {
+            foreach (KeyValuePair<string, string> pair in dictionary)
+            {
+                yield return $"{pair.Key} ({pair.Value})";
+            }
         }
 
         /*

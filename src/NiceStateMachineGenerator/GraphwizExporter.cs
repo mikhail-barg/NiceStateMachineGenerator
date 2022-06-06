@@ -80,6 +80,10 @@ namespace NiceStateMachineGenerator
                     {
                         writer.Write("; style = bold");
                     }
+                    if (state.Color != null)
+                    {
+                        writer.Write($"; color = \"{state.Color}\"");
+                    }
                     writer.WriteLine("];");
                 };
                 --writer.Indent;
@@ -215,6 +219,12 @@ namespace NiceStateMachineGenerator
             {
                 writer.Write("[style = dotted]");
             }
+
+            if (edgeDescr.Color != null)
+            {
+                writer.Write($"[color = \"{edgeDescr.Color}\"]");
+            }
+
             writer.WriteLine(";");
         }
 

@@ -264,6 +264,7 @@ namespace NiceStateMachineGenerator
             }
 
             stateDescr!.IsFinal = ParserHelper.GetJBoolWithDefault(json, "final", false, handledTokens);
+            stateDescr.Color = ParserHelper.GetJString(json, "color", handledTokens, out JToken? _, required: false);
 
             //sanity check
             {
@@ -422,6 +423,8 @@ namespace NiceStateMachineGenerator
             {
                 throw new ParseValidationException(commentToken, "On traverse comment is specified, but no event required");
             };
+
+            edge.Color = ParserHelper.GetJString(description, "color", handledTokens, out JToken? _, required: false);
 
             ParserHelper.CheckAllTokensHandled(description, handledTokens);
         }

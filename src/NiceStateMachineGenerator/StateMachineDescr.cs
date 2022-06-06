@@ -125,6 +125,7 @@ namespace NiceStateMachineGenerator
         public string? TraverseEventComment { get; set; }
         public EdgeTarget? Target { get; set; }
         public Dictionary<string, EdgeTarget>? Targets { get; set; }
+        public string? Color { get; set; }
 
         public EdgeDescr(string invokerName, bool isTimer)
         {
@@ -147,6 +148,7 @@ namespace NiceStateMachineGenerator
         public Dictionary<string, EdgeDescr>? TimerEdges { get; set; }
         public string? NextStateName { get; set; }
         public bool IsFinal { get; set; }
+        public string? Color { get; set; }
 
         public StateDescr(string name)
         {

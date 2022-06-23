@@ -13,6 +13,7 @@ namespace NiceStateMachineGenerator.App
         public string? output { get; set; } = null;
         public string? out_common { get; set; } = null;
         public Mode mode { get; set; } = Mode.validate;
+        public bool daemon { get; set; } = false;
 
         public GraphwizExporter.Settings graphwiz { get; set; } = new GraphwizExporter.Settings();
         public CsharpCodeExporter.Settings c_sharp { get; set; } = new CsharpCodeExporter.Settings();

@@ -30,25 +30,27 @@ namespace SampleApp.Sip.Generated
             Terminated,
         }
         
-        /*send request*/
+        /**<summary>send request</summary>*/
         public event Action OnStateEnter__Trying_Start;
-        /*The client transaction MUST be destroyed the instant it enters the 'Terminated' state*/
+        /**<summary>The client transaction MUST be destroyed the instant it enters the 'Terminated' state</summary>*/
         public event Action OnStateEnter__Terminated;
         
-        /*the response MUST be passed to the TU*/
+        /**<summary>the response MUST be passed to the TU</summary>*/
         public event Action<t_packet> OnEventTraverse__SIP_1xx; 
-        /*the response MUST be passed to the TU*/
+        /**<summary>the response MUST be passed to the TU</summary>*/
         public event Action<t_packet> OnEventTraverse__SIP_200_699; 
-        /*the client transaction SHOULD inform the TU about the error*/
-        public event Action OnEventTraverse__TransportError;
-        /*the client transaction SHOULD inform the TU about the timeout*/
-        public event Action OnTimerTraverse__Timer_F;
-        /*retransmit*/
-        public event Action OnTimerTraverse__Timer_E;
-        /*retransmit*/
-        public event Action OnTimerTraverse__Timer_E2;
+        /**<summary>the client transaction SHOULD inform the TU about the error</summary>*/
+        public event Action OnEventTraverse__TransportError; 
+        /**<summary>the client transaction SHOULD inform the TU about the timeout</summary>*/
+        public event Action OnTimerTraverse__Timer_F; 
+        /**<summary>retransmit</summary>*/
+        public event Action OnTimerTraverse__Timer_E; 
+        /**<summary>retransmit</summary>*/
+        public event Action OnTimerTraverse__Timer_E2; 
         
         private bool m_isDisposed = false;
+        public event Action<string> OnLog;
+        public event Action<State> OnStateEnter;
         private readonly ITimer Timer_F;
         private readonly ITimer Timer_E;
         private readonly ITimer Timer_E2;
@@ -77,18 +79,16 @@ namespace SampleApp.Sip.Generated
             }
         }
         
-        private void CheckNotDisposed()
+        public void Start()
         {
             if (this.m_isDisposed)
             {
-                throw new ObjectDisposedException("client__non_invite__udp");
+                return;
             }
-        }
-        
-        public void Start()
-        {
-            CheckNotDisposed();
+            
+            this.OnLog?.Invoke("Start");
             this.CurrentState = State.Trying_Start;
+            this.OnStateEnter?.Invoke(State.Trying_Start);
             this.Timer_F.StartOrReset(32);
             this.Timer_E.StartOrReset(m_Timer_E_delay);
             OnStateEnter__Trying_Start?.Invoke();
@@ -96,18 +96,24 @@ namespace SampleApp.Sip.Generated
         
         private void OnTimer(ITimer timer)
         {
-            CheckNotDisposed();
+            if (this.m_isDisposed)
+            {
+                return;
+            }
+            
             switch (this.CurrentState)
             {
             case State.Trying_Start:
                 if (timer == this.Timer_F)
                 {
+                    this.OnLog?.Invoke("OnTimer: Timer_F");
                     OnTimerTraverse__Timer_F?.Invoke();
                     SetState(State.Terminated);
                 }
                 else 
                 if (timer == this.Timer_E)
                 {
+                    this.OnLog?.Invoke("OnTimer: Timer_E");
                     OnTimerTraverse__Timer_E?.Invoke();
                     SetState(State.Trying_Retransmit);
                 }
@@ -120,12 +126,14 @@ namespace SampleApp.Sip.Generated
             case State.Trying_Retransmit:
                 if (timer == this.Timer_F)
                 {
+                    this.OnLog?.Invoke("OnTimer: Timer_F");
                     OnTimerTraverse__Timer_F?.Invoke();
                     SetState(State.Terminated);
                 }
                 else 
                 if (timer == this.Timer_E)
                 {
+                    this.OnLog?.Invoke("OnTimer: Timer_E");
                     OnTimerTraverse__Timer_E?.Invoke();
                     SetState(State.Trying_Retransmit);
                 }
@@ -138,12 +146,14 @@ namespace SampleApp.Sip.Generated
             case State.Proceeding:
                 if (timer == this.Timer_F)
                 {
+                    this.OnLog?.Invoke("OnTimer: Timer_F");
                     OnTimerTraverse__Timer_F?.Invoke();
                     SetState(State.Terminated);
                 }
                 else 
                 if (timer == this.Timer_E2)
                 {
+                    this.OnLog?.Invoke("OnTimer: Timer_E2");
                     OnTimerTraverse__Timer_E2?.Invoke();
                     SetState(State.Proceeding);
                 }
@@ -156,6 +166,7 @@ namespace SampleApp.Sip.Generated
             case State.Completed_Consume:
                 if (timer == this.Timer_K)
                 {
+                    this.OnLog?.Invoke("OnTimer: Timer_K");
                     SetState(State.Terminated);
                 }
                 else 
@@ -171,7 +182,12 @@ namespace SampleApp.Sip.Generated
         
         public void ProcessEvent__SIP_1xx(t_packet packet)
         {
-            CheckNotDisposed();
+            if (this.m_isDisposed)
+            {
+                return;
+            }
+            
+            this.OnLog?.Invoke("Event: SIP_1xx");
             switch (this.CurrentState)
             {
             case State.Trying_Start:
@@ -200,7 +216,12 @@ namespace SampleApp.Sip.Generated
         
         public void ProcessEvent__SIP_200_699(t_packet packet)
         {
-            CheckNotDisposed();
+            if (this.m_isDisposed)
+            {
+                return;
+            }
+            
+            this.OnLog?.Invoke("Event: SIP_200_699");
             switch (this.CurrentState)
             {
             case State.Trying_Start:
@@ -229,7 +250,12 @@ namespace SampleApp.Sip.Generated
         
         public void ProcessEvent__TransportError()
         {
-            CheckNotDisposed();
+            if (this.m_isDisposed)
+            {
+                return;
+            }
+            
+            this.OnLog?.Invoke("Event: TransportError");
             switch (this.CurrentState)
             {
             case State.Trying_Start:
@@ -258,11 +284,17 @@ namespace SampleApp.Sip.Generated
         
         private void SetState(State state)
         {
-            CheckNotDisposed();
+            if (this.m_isDisposed)
+            {
+                return;
+            }
+            
+            this.OnLog?.Invoke("SetState: " + state);
             switch (state)
             {
             case State.Trying_Start:
                 this.CurrentState = State.Trying_Start;
+                this.OnStateEnter?.Invoke(State.Trying_Start);
                 this.Timer_F.StartOrReset(32);
                 this.Timer_E.StartOrReset(m_Timer_E_delay);
                 OnStateEnter__Trying_Start?.Invoke();
@@ -270,6 +302,7 @@ namespace SampleApp.Sip.Generated
                 
             case State.Trying_Retransmit:
                 this.CurrentState = State.Trying_Retransmit;
+                this.OnStateEnter?.Invoke(State.Trying_Retransmit);
                 this.m_Timer_E_delay *= 2;
                 if (this.m_Timer_E_delay > 4) { this.m_Timer_E_delay = 4; }
                 this.Timer_E.StartOrReset(m_Timer_E_delay);
@@ -277,12 +310,14 @@ namespace SampleApp.Sip.Generated
                 
             case State.Proceeding:
                 this.CurrentState = State.Proceeding;
+                this.OnStateEnter?.Invoke(State.Proceeding);
                 this.Timer_E.Stop();
                 this.Timer_E2.StartOrReset(4);
                 break;
                 
             case State.Completed:
                 this.CurrentState = State.Completed;
+                this.OnStateEnter?.Invoke(State.Completed);
                 this.Timer_E.Stop();
                 this.Timer_E2.Stop();
                 this.Timer_F.Stop();
@@ -292,10 +327,12 @@ namespace SampleApp.Sip.Generated
                 
             case State.Completed_Consume:
                 this.CurrentState = State.Completed_Consume;
+                this.OnStateEnter?.Invoke(State.Completed_Consume);
                 break;
                 
             case State.Terminated:
                 this.CurrentState = State.Terminated;
+                this.OnStateEnter?.Invoke(State.Terminated);
                 OnStateEnter__Terminated?.Invoke();
                 break;
                 

@@ -671,7 +671,8 @@ namespace NiceStateMachineGenerator
                     {
                         foreach (EdgeTraverseCallbackType callbackType in edge.OnTraverseEventTypes)
                         {
-                            WriteCallbackEvent(state, edge, callbackType, declaredEventCallbacks);
+                            EventDescr @event = this.m_stateMachine.Events[edge.InvokerName];
+                            WriteCallbackEvent(state, edge, @event.Args, callbackType, declaredEventCallbacks);
                         }
                     }
                 }
@@ -681,7 +682,7 @@ namespace NiceStateMachineGenerator
                     {
                         foreach (EdgeTraverseCallbackType callbackType in edge.OnTraverseEventTypes)
                         {
-                            WriteCallbackEvent(state, edge, callbackType, declaredEventCallbacks);
+                            WriteCallbackEvent(state, edge, null, callbackType, declaredEventCallbacks);
                         }
                     }
                 }
@@ -689,7 +690,7 @@ namespace NiceStateMachineGenerator
             this.m_mainCodeWriter.WriteLine();
         }
 
-        private void WriteCallbackEvent(StateDescr state, EdgeDescr edge, EdgeTraverseCallbackType callbackType, Dictionary<string, bool> declaredEventCallbacks)
+        private void WriteCallbackEvent(StateDescr state, EdgeDescr edge, List<KeyValuePair<string, string>>? eventArgs, EdgeTraverseCallbackType callbackType, Dictionary<string, bool> declaredEventCallbacks)
         {
             string callbackName = ExportHelper.ComposeEdgeTraveseCallbackName(callbackType, state, edge, out bool needArgs, out bool isFunction);
             if (declaredEventCallbacks.TryGetValue(callbackName, out bool oldCallbackIsFunction))
@@ -705,9 +706,11 @@ namespace NiceStateMachineGenerator
                 declaredEventCallbacks.Add(callbackName, isFunction);
             };
             WriteCommentIfSpecified(edge.TraverseEventComment);
-            EventDescr @event = this.m_stateMachine.Events[edge.InvokerName];
 
-            needArgs = needArgs && (@event.Args.Count > 0);
+            needArgs = needArgs
+                && eventArgs != null
+                && eventArgs.Count > 0;
+
             bool isGeneric = needArgs || isFunction;
 
             this.m_mainCodeWriter.Write($"public event ");
@@ -716,18 +719,21 @@ namespace NiceStateMachineGenerator
             {
                 this.m_mainCodeWriter.Write("<");
             };
-            for (int i = 0; i < @event.Args.Count; ++i)
+            if (needArgs)
             {
-                KeyValuePair<string, string> arg = @event.Args[i];
-                if (i != 0)
+                for (int i = 0; i < eventArgs!.Count; ++i)
                 {
-                    this.m_mainCodeWriter.Write(", ");
+                    KeyValuePair<string, string> arg = eventArgs[i];
+                    if (i != 0)
+                    {
+                        this.m_mainCodeWriter.Write(", ");
+                    };
+                    this.m_mainCodeWriter.Write(arg.Value);
                 };
-                this.m_mainCodeWriter.Write(arg.Value);
             };
             if (isFunction)
             {
-                if (@event.Args.Count > 0)
+                if (needArgs)
                 {
                     this.m_mainCodeWriter.Write(", ");
                 };

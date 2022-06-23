@@ -4,6 +4,7 @@
 
 #include <stdexcept>
 #include <functional>
+#include <optional>
 
 
 #include sip.h
@@ -48,13 +49,13 @@ namespace sip::generated
         /*the response MUST be passed to the TU*/
         std::function<void(t_packet)> OnEventTraverse__SIP_200_699; 
         /*the client transaction SHOULD inform the TU about the error*/
-        std::function<void()> OnEventTraverse__TransportError;
+        std::function<void()> OnEventTraverse__TransportError; 
         /*the client transaction SHOULD inform the TU about the timeout*/
-        std::function<void()> OnTimerTraverse__Timer_F;
+        std::function<void()> OnTimerTraverse__Timer_F; 
         /*retransmit*/
-        std::function<void()> OnTimerTraverse__Timer_E;
+        std::function<void()> OnTimerTraverse__Timer_E; 
         /*retransmit*/
-        std::function<void()> OnTimerTraverse__Timer_E2;
+        std::function<void()> OnTimerTraverse__Timer_E2; 
         
     private:
         State m_currentState = State::Trying_Start;

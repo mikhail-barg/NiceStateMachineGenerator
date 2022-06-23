@@ -17,13 +17,10 @@ namespace SampleApp.Sip.Generated
             void Stop();
         }
         
-        public interface ITimerFactory
-        {
-            ITimer CreateTimer(string timerName, TimerFiredCallback callback);
-        }
+        public delegate ITimer CreateTimerDelegate(string timerName, TimerFiredCallback callback);
         
         
-        public enum States
+        public enum State
         {
             Calling_Start,
             Calling_Retransmit,
@@ -32,40 +29,42 @@ namespace SampleApp.Sip.Generated
             Terminated,
         }
         
-        /*INVITE sent*/
+        /**<summary>INVITE sent</summary>*/
         public event Action OnStateEnter__Calling_Start;
-        /*INVITE sent*/
+        /**<summary>INVITE sent</summary>*/
         public event Action OnStateEnter__Calling_Retransmit;
-        /*The client transaction MUST be destroyed the instant it enters the 'Terminated' state*/
+        /**<summary>The client transaction MUST be destroyed the instant it enters the 'Terminated' state</summary>*/
         public event Action OnStateEnter__Terminated;
         
-        /*Furthermore, the provisional response MUST be passed to the TU*/
+        /**<summary>Furthermore, the provisional response MUST be passed to the TU</summary>*/
         public event Action<t_packet> OnEventTraverse__SIP_1xx; 
-        /*and the response MUST be passed up to the TU*/
+        /**<summary>and the response MUST be passed up to the TU</summary>*/
         public event Action<t_packet> OnEventTraverse__SIP_2xx; 
-        /*The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request*/
+        /**<summary>The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request</summary>*/
         public event Action<t_packet> OnEventTraverse__SIP_300_699; 
-        /*Inform TU*/
-        public event Action OnEventTraverse__TransportError;
-        /*the client transaction SHOULD inform the TU that a timeout has occurred.*/
-        public event Action OnTimerTraverse__Timer_B;
-        /*Any retransmissions of the final response that are received while in the 'Completed' state MUST cause the ACK to be re-passed to the transport layer for retransmission, but the newly received response MUST NOT be passed up to the TU.*/
+        /**<summary>Inform TU</summary>*/
+        public event Action OnEventTraverse__TransportError; 
+        /**<summary>the client transaction SHOULD inform the TU that a timeout has occurred.</summary>*/
+        public event Action OnTimerTraverse__Timer_B; 
+        /**<summary>Any retransmissions of the final response that are received while in the 'Completed' state MUST cause the ACK to be re-passed to the transport layer for retransmission, but the newly received response MUST NOT be passed up to the TU.</summary>*/
         public event Action<t_packet> OnEventTraverse__Completed__SIP_300_699; 
         
         private bool m_isDisposed = false;
+        public event Action<string> OnLog;
+        public event Action<State> OnStateEnter;
         private readonly ITimer Timer_A;
         private readonly ITimer Timer_A2;
         private readonly ITimer Timer_B;
         private readonly ITimer Timer_D;
         
-        public States CurrentState { get; private set; } = States.Calling_Start;
+        public State CurrentState { get; private set; } = State.Calling_Start;
         
-        public client__invite__udp(ITimerFactory timerFactory)
+        public client__invite__udp(CreateTimerDelegate createTimer)
         {
-            this.Timer_A = timerFactory.CreateTimer("Timer_A", this.OnTimer);
-            this.Timer_A2 = timerFactory.CreateTimer("Timer_A2", this.OnTimer);
-            this.Timer_B = timerFactory.CreateTimer("Timer_B", this.OnTimer);
-            this.Timer_D = timerFactory.CreateTimer("Timer_D", this.OnTimer);
+            this.Timer_A = createTimer("Timer_A", this.OnTimer);
+            this.Timer_A2 = createTimer("Timer_A2", this.OnTimer);
+            this.Timer_B = createTimer("Timer_B", this.OnTimer);
+            this.Timer_D = createTimer("Timer_D", this.OnTimer);
         }
         
         public void Dispose()
@@ -80,18 +79,16 @@ namespace SampleApp.Sip.Generated
             }
         }
         
-        private void CheckNotDisposed()
+        public void Start()
         {
             if (this.m_isDisposed)
             {
-                throw new ObjectDisposedException("client__invite__udp");
+                return;
             }
-        }
-        
-        public void Start()
-        {
-            CheckNotDisposed();
-            this.CurrentState = States.Calling_Start;
+            
+            this.OnLog?.Invoke("Start");
+            this.CurrentState = State.Calling_Start;
+            this.OnStateEnter?.Invoke(State.Calling_Start);
             this.Timer_A.StartOrReset(0.5);
             this.Timer_B.StartOrReset(32);
             OnStateEnter__Calling_Start?.Invoke();
@@ -99,16 +96,24 @@ namespace SampleApp.Sip.Generated
         
         private void OnTimer(ITimer timer)
         {
-            CheckNotDisposed();
+            if (this.m_isDisposed)
+            {
+                return;
+            }
+            
             switch (this.CurrentState)
             {
-            case States.Calling_Start:
+            case State.Calling_Start:
                 if (timer == this.Timer_A)
                 {
-                    SetState(States.Calling_Retransmit);
+                    this.OnLog?.Invoke("OnTimer: Timer_A");
+                    SetState(State.Calling_Retransmit);
                 }
-                else if (timer == this.Timer_B)
+                else 
+                if (timer == this.Timer_B)
                 {
+                    this.OnLog?.Invoke("OnTimer: Timer_B");
+                    throw new Exception("Event Timer_B is forbidden in state " + this.CurrentState);
                 }
                 else 
                 {
@@ -116,15 +121,18 @@ namespace SampleApp.Sip.Generated
                 }
                 break;
                 
-            case States.Calling_Retransmit:
+            case State.Calling_Retransmit:
                 if (timer == this.Timer_A2)
                 {
-                    SetState(States.Calling_Retransmit);
+                    this.OnLog?.Invoke("OnTimer: Timer_A2");
+                    SetState(State.Calling_Retransmit);
                 }
-                else if (timer == this.Timer_B)
+                else 
+                if (timer == this.Timer_B)
                 {
+                    this.OnLog?.Invoke("OnTimer: Timer_B");
                     OnTimerTraverse__Timer_B?.Invoke();
-                    SetState(States.Terminated);
+                    SetState(State.Terminated);
                 }
                 else 
                 {
@@ -132,10 +140,11 @@ namespace SampleApp.Sip.Generated
                 }
                 break;
                 
-            case States.Completed:
+            case State.Completed:
                 if (timer == this.Timer_D)
                 {
-                    SetState(States.Terminated);
+                    this.OnLog?.Invoke("OnTimer: Timer_D");
+                    SetState(State.Terminated);
                 }
                 else 
                 {
@@ -150,26 +159,31 @@ namespace SampleApp.Sip.Generated
         
         public void ProcessEvent__SIP_1xx(t_packet packet)
         {
-            CheckNotDisposed();
+            if (this.m_isDisposed)
+            {
+                return;
+            }
+            
+            this.OnLog?.Invoke("Event: SIP_1xx");
             switch (this.CurrentState)
             {
-            case States.Calling_Start:
+            case State.Calling_Start:
                 OnEventTraverse__SIP_1xx?.Invoke(packet);
-                SetState(States.Proceeding);
+                SetState(State.Proceeding);
                 break;
                 
-            case States.Calling_Retransmit:
+            case State.Calling_Retransmit:
                 OnEventTraverse__SIP_1xx?.Invoke(packet);
-                SetState(States.Proceeding);
+                SetState(State.Proceeding);
                 break;
                 
-            case States.Proceeding:
+            case State.Proceeding:
                 OnEventTraverse__SIP_1xx?.Invoke(packet);
-                SetState(States.Proceeding);
+                SetState(State.Proceeding);
                 break;
                 
-            case States.Completed:
-                break;
+            case State.Completed:
+                throw new Exception("Event SIP_1xx is forbidden in state " + this.CurrentState);
                 
             default:
                 throw new Exception("Event SIP_1xx is not expected in state " + this.CurrentState);
@@ -178,26 +192,31 @@ namespace SampleApp.Sip.Generated
         
         public void ProcessEvent__SIP_2xx(t_packet packet)
         {
-            CheckNotDisposed();
+            if (this.m_isDisposed)
+            {
+                return;
+            }
+            
+            this.OnLog?.Invoke("Event: SIP_2xx");
             switch (this.CurrentState)
             {
-            case States.Calling_Start:
+            case State.Calling_Start:
                 OnEventTraverse__SIP_2xx?.Invoke(packet);
-                SetState(States.Terminated);
+                SetState(State.Terminated);
                 break;
                 
-            case States.Calling_Retransmit:
+            case State.Calling_Retransmit:
                 OnEventTraverse__SIP_2xx?.Invoke(packet);
-                SetState(States.Terminated);
+                SetState(State.Terminated);
                 break;
                 
-            case States.Proceeding:
+            case State.Proceeding:
                 OnEventTraverse__SIP_2xx?.Invoke(packet);
-                SetState(States.Terminated);
+                SetState(State.Terminated);
                 break;
                 
-            case States.Completed:
-                break;
+            case State.Completed:
+                throw new Exception("Event SIP_2xx is forbidden in state " + this.CurrentState);
                 
             default:
                 throw new Exception("Event SIP_2xx is not expected in state " + this.CurrentState);
@@ -206,27 +225,32 @@ namespace SampleApp.Sip.Generated
         
         public void ProcessEvent__SIP_300_699(t_packet packet)
         {
-            CheckNotDisposed();
+            if (this.m_isDisposed)
+            {
+                return;
+            }
+            
+            this.OnLog?.Invoke("Event: SIP_300_699");
             switch (this.CurrentState)
             {
-            case States.Calling_Start:
+            case State.Calling_Start:
                 OnEventTraverse__SIP_300_699?.Invoke(packet);
-                SetState(States.Completed);
+                SetState(State.Completed);
                 break;
                 
-            case States.Calling_Retransmit:
+            case State.Calling_Retransmit:
                 OnEventTraverse__SIP_300_699?.Invoke(packet);
-                SetState(States.Completed);
+                SetState(State.Completed);
                 break;
                 
-            case States.Proceeding:
+            case State.Proceeding:
                 OnEventTraverse__SIP_300_699?.Invoke(packet);
-                SetState(States.Completed);
+                SetState(State.Completed);
                 break;
                 
-            case States.Completed:
+            case State.Completed:
                 OnEventTraverse__Completed__SIP_300_699?.Invoke(packet);
-                SetState(States.Completed);
+                SetState(State.Completed);
                 break;
                 
             default:
@@ -236,27 +260,32 @@ namespace SampleApp.Sip.Generated
         
         public void ProcessEvent__TransportError()
         {
-            CheckNotDisposed();
+            if (this.m_isDisposed)
+            {
+                return;
+            }
+            
+            this.OnLog?.Invoke("Event: TransportError");
             switch (this.CurrentState)
             {
-            case States.Calling_Start:
+            case State.Calling_Start:
                 OnEventTraverse__TransportError?.Invoke();
-                SetState(States.Terminated);
+                SetState(State.Terminated);
                 break;
                 
-            case States.Calling_Retransmit:
+            case State.Calling_Retransmit:
                 OnEventTraverse__TransportError?.Invoke();
-                SetState(States.Terminated);
+                SetState(State.Terminated);
                 break;
                 
-            case States.Proceeding:
+            case State.Proceeding:
                 OnEventTraverse__TransportError?.Invoke();
-                SetState(States.Terminated);
+                SetState(State.Terminated);
                 break;
                 
-            case States.Completed:
+            case State.Completed:
                 OnEventTraverse__TransportError?.Invoke();
-                SetState(States.Terminated);
+                SetState(State.Terminated);
                 break;
                 
             default:
@@ -264,42 +293,52 @@ namespace SampleApp.Sip.Generated
             }
         }
         
-        private void SetState(States state)
+        private void SetState(State state)
         {
-            CheckNotDisposed();
+            if (this.m_isDisposed)
+            {
+                return;
+            }
+            
+            this.OnLog?.Invoke("SetState: " + state);
             switch (state)
             {
-            case States.Calling_Start:
-                this.CurrentState = States.Calling_Start;
+            case State.Calling_Start:
+                this.CurrentState = State.Calling_Start;
+                this.OnStateEnter?.Invoke(State.Calling_Start);
                 this.Timer_A.StartOrReset(0.5);
                 this.Timer_B.StartOrReset(32);
                 OnStateEnter__Calling_Start?.Invoke();
                 break;
                 
-            case States.Calling_Retransmit:
-                this.CurrentState = States.Calling_Retransmit;
+            case State.Calling_Retransmit:
+                this.CurrentState = State.Calling_Retransmit;
+                this.OnStateEnter?.Invoke(State.Calling_Retransmit);
                 this.Timer_A.Stop();
                 this.Timer_A2.StartOrReset(1);
                 OnStateEnter__Calling_Retransmit?.Invoke();
                 break;
                 
-            case States.Proceeding:
-                this.CurrentState = States.Proceeding;
+            case State.Proceeding:
+                this.CurrentState = State.Proceeding;
+                this.OnStateEnter?.Invoke(State.Proceeding);
                 this.Timer_A.Stop();
                 this.Timer_A2.Stop();
                 this.Timer_B.Stop();
                 break;
                 
-            case States.Completed:
-                this.CurrentState = States.Completed;
+            case State.Completed:
+                this.CurrentState = State.Completed;
+                this.OnStateEnter?.Invoke(State.Completed);
                 this.Timer_A.Stop();
                 this.Timer_A2.Stop();
                 this.Timer_B.Stop();
                 this.Timer_D.StartOrReset(32);
                 break;
                 
-            case States.Terminated:
-                this.CurrentState = States.Terminated;
+            case State.Terminated:
+                this.CurrentState = State.Terminated;
+                this.OnStateEnter?.Invoke(State.Terminated);
                 OnStateEnter__Terminated?.Invoke();
                 break;
                 

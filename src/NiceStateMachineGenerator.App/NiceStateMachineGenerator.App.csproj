@@ -7,8 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\samples\call_handler\sm.json" Link="samples\call_handler.json" />
-    <None Include="..\..\samples\sip_invite\sm.json" Link="samples\sip_invite.json" />
+    <None Include="..\..\samples\call_handler\call_handler.json" Link="samples\call_handler\call_handler.json" />
+    <None Include="..\..\samples\sip\client__invite__udp.json" Link="samples\sip\client__invite__udp.json" />
+		<None Include="..\..\samples\sip\client__non_invite__udp.json" Link="samples\sip\client__non_invite__udp.json" />
   </ItemGroup>
 
   <ItemGroup>

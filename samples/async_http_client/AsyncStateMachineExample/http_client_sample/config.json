@@ -1,0 +1,12 @@
+{
+	"graphwiz": {
+		"ShowStateEnterEvents": true,
+		"ShowEdgeTraverseEvents": true,
+		"ShowEdgeTraverseComments": true
+	},
+	"c_sharp": {
+		"NamespaceName": "GeneratedSMHttpSample",
+		"ClassName": "HttpSampleStateMachine",
+		"AsyncCallbacks": true
+	}
+}

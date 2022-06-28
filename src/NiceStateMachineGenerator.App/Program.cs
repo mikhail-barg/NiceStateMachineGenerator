@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 
 namespace NiceStateMachineGenerator.App
 {
@@ -23,15 +24,110 @@ namespace NiceStateMachineGenerator.App
                 string sourceFile = args[0];
                 Config config = GetConfig(args.Skip(1).ToArray());
 
-                Console.WriteLine("Reading state machine description from " + sourceFile);
-                StateMachineDescr stateMachine = Parser.ParseFile(sourceFile);
-
-                Console.WriteLine("Validating state machine");
-                Validator.Validate(stateMachine);
-                Console.WriteLine("Validation done");
-
-                switch (config.mode)
+                if (config.daemon)
                 {
+                    RunInDaemonMode(sourceFile, config);
+                }
+                else
+                {
+                    bool succeed = TryGenerateStateMachine(sourceFile, config);
+                    if (!succeed)
+                    {
+                        Environment.Exit(2);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                Environment.Exit(2);
+            }
+        }
+
+        private static void RunInDaemonMode(string sourceFile, Config config)
+        {
+            // Generate at startup before starting to watch for changes
+            TryGenerateStateMachine(sourceFile, config);
+
+            string sourceDirectory = Path.GetDirectoryName(sourceFile)!;
+            string sourceFilename = Path.GetFileName(sourceFile);
+            Console.WriteLine($"Waiting for file {sourceFilename} in {sourceDirectory} to change");
+            using (FileSystemWatcher fileSystemWatcher = new FileSystemWatcher(sourceDirectory, sourceFilename))
+            {
+                fileSystemWatcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite;
+                fileSystemWatcher.IncludeSubdirectories = false;
+                fileSystemWatcher.EnableRaisingEvents = true;
+
+                object lockObject = new object();
+                DateTime lastFireTime = DateTime.Now;
+                // Events of FileSystemWatcher can trigger multiple times
+                // We need to get rid of duplicate events
+                // So current hack is to ignore any changes in 200ms from last event
+                // Read more at https://weblogs.asp.net/ashben/31773
+                fileSystemWatcher.Changed += (object _, FileSystemEventArgs eventArgs) =>
+                {
+                    lock (lockObject)
+                    {
+                        // We can get real last write time via File.GetLastWriteTime(eventArgs.FullPath), but DateTime.Now will do fine
+                        DateTime fireTime = DateTime.Now;
+                        if (fireTime - lastFireTime < TimeSpan.FromMilliseconds(200))
+                        {
+                            return;
+                        }
+
+                        lastFireTime = fireTime;
+                        Thread.Sleep(100); // We need to wait for some time because this event triggers faster than filesystem write completes
+                        Console.WriteLine("");
+                        Console.WriteLine($"File {eventArgs.Name} changed at {fireTime}. Generating state machine");
+                        bool succeed = TryGenerateStateMachine(sourceFile, config);
+                        if (succeed)
+                        {
+                            Console.WriteLine($"Rendering Graphviz diagram at {eventArgs.FullPath}");
+                            try
+                            {
+                                Process.Start("dot", $"-Tpng -O {eventArgs.FullPath}.dot");
+                                Console.WriteLine("Render complete");
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine($"Graphviz render failed: {e}");
+                            }
+                        }
+                    }
+                };
+
+                Console.WriteLine("Press any key to stop");
+                Console.ReadKey();
+
+                fileSystemWatcher.EnableRaisingEvents = false;
+            }
+        }
+
+        private static bool TryGenerateStateMachine(string sourceFile, Config config)
+        {
+            try
+            {
+                GenerateStateMachine(sourceFile, config);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                return false;
+            }
+        }
+
+        private static void GenerateStateMachine(string sourceFile, Config config)
+        {
+            Console.WriteLine("Reading state machine description from " + sourceFile);
+            StateMachineDescr stateMachine = Parser.ParseFile(sourceFile);
+
+            Console.WriteLine("Validating state machine");
+            Validator.Validate(stateMachine);
+            Console.WriteLine("Validation done");
+
+            switch (config.mode)
+            {
                 case Mode.validate:
                     Console.WriteLine("No file output mode specified");
                     return;
@@ -45,22 +141,15 @@ namespace NiceStateMachineGenerator.App
                     break;
                 default:
                     ExportSingleMode(
-                        stateMachine, 
-                        config.output ?? sourceFile + config.mode.ToExtension(), 
+                        stateMachine,
+                        config.output ?? sourceFile + config.mode.ToExtension(),
                         config.out_common,
-                        config.mode, 
+                        config.mode,
                         config
                     );
                     break;
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                Environment.Exit(2);
             }
         }
-
 
         private static void ExportSingleMode(StateMachineDescr stateMachine, string outFileName, string? outCommonCodeFileName, Mode mode, Config config)
         {
@@ -112,6 +201,7 @@ namespace NiceStateMachineGenerator.App
                 { "-o", "output" },
                 { "-t", "out_common"},
                 { "-m", "mode" },
+                { "-d", "daemon" },
             };
             ValidateArgs(args, switchMappings);
             builder.AddCommandLine(args, switchMappings);

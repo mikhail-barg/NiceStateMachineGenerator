@@ -22,6 +22,8 @@ namespace NiceStateMachineGenerator
             public string? CommonCodeNamespace { get; set; } = null; //same as NamespaceName
             public bool NullableReferenceTypes { get; set; } = false;
 
+            public bool AsyncCallbacks { get; set; } = false;
+
             internal string NullableQuantifier => this.NullableReferenceTypes ? "?" : "";
         }
 
@@ -150,6 +152,7 @@ namespace NiceStateMachineGenerator
                         WriteProcessEvent(@event);
                     };
                     WriteSetState();
+                    WriteAsyncCallbackInvoker();
                     --this.m_mainCodeWriter.Indent;
                 }
                 this.m_mainCodeWriter.WriteLine("}");  //class
@@ -160,7 +163,15 @@ namespace NiceStateMachineGenerator
 
         private void WriteSetState()
         {
-            this.m_mainCodeWriter.WriteLine($"private void SetState({STATES_ENUM_NAME} state)");
+            if (this.m_settings.AsyncCallbacks)
+            {
+                this.m_mainCodeWriter.WriteLine($"private async Task SetState({STATES_ENUM_NAME} state)");
+            }
+            else
+            {
+                this.m_mainCodeWriter.WriteLine($"private void SetState({STATES_ENUM_NAME} state)");
+            }
+
             this.m_mainCodeWriter.WriteLine("{");
             {
                 ++this.m_mainCodeWriter.Indent;
@@ -177,6 +188,11 @@ namespace NiceStateMachineGenerator
                             WriteStateEnterCode(state);
                             if (state.NextStateName != null)
                             {
+                                if (this.m_settings.AsyncCallbacks)
+                                {
+                                    this.m_mainCodeWriter.Write("await ");
+                                }
+
                                 this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{state.NextStateName});");
                             }
                             this.m_mainCodeWriter.WriteLine("break;");
@@ -214,7 +230,15 @@ namespace NiceStateMachineGenerator
 
         private void WriteProcessEvent(EventDescr @event)
         {
-            this.m_mainCodeWriter.Write($"public void ProcessEvent__{@event.Name}(");
+            if (this.m_settings.AsyncCallbacks)
+            {
+                this.m_mainCodeWriter.Write($"public async Task ProcessEvent__{@event.Name}(");
+            }
+            else
+            {
+                this.m_mainCodeWriter.Write($"public void ProcessEvent__{@event.Name}(");
+            }
+
             for (int i = 0; i < @event.Args.Count; ++i)
             {
                 KeyValuePair<string, string> arg = @event.Args[i];
@@ -339,9 +363,27 @@ namespace NiceStateMachineGenerator
                 if (!isFunction)
                 {
                     //regular callback code
-                    this.m_mainCodeWriter.Write($"{callbackName}?.Invoke(");
-                    WriteEdgeTraverseCallbackArgs(needArgs, edge);
-                    this.m_mainCodeWriter.WriteLine(");");
+                    if (this.m_settings.AsyncCallbacks)
+                    {
+                        this.m_mainCodeWriter.WriteLine($"if (this.{callbackName} != null)");
+                        this.m_mainCodeWriter.WriteLine("{");
+                        ++this.m_mainCodeWriter.Indent;
+                        this.m_mainCodeWriter.Write($"await InvokeAsync(this.{callbackName}");
+                        if (needArgs && this.m_stateMachine.Events[edge.InvokerName].Args.Count > 0)
+                        {
+                            this.m_mainCodeWriter.Write(", ");
+                            WriteEdgeTraverseCallbackArgs(needArgs, edge);
+                        }
+                        this.m_mainCodeWriter.WriteLine(");");
+                        --this.m_mainCodeWriter.Indent;
+                        this.m_mainCodeWriter.WriteLine("}");
+                    }
+                    else
+                    {
+                        this.m_mainCodeWriter.Write($"{callbackName}?.Invoke(");
+                        WriteEdgeTraverseCallbackArgs(needArgs, edge);
+                        this.m_mainCodeWriter.WriteLine(");");
+                    }
                 }
                 else
                 {
@@ -354,9 +396,22 @@ namespace NiceStateMachineGenerator
                     this.m_mainCodeWriter.WriteLine("{"); //visibility guard
                     ++this.m_mainCodeWriter.Indent;
                     {
-                        this.m_mainCodeWriter.Write($"{STATES_ENUM_NAME}? nextState = {callbackName}.Invoke(");
-                        WriteEdgeTraverseCallbackArgs(needArgs, edge);
-                        this.m_mainCodeWriter.WriteLine(");");
+                        if (this.m_settings.AsyncCallbacks)
+                        {
+                            this.m_mainCodeWriter.Write($"{STATES_ENUM_NAME}? nextState = await InvokeAsync({callbackName}");
+                            if (needArgs && this.m_stateMachine.Events[edge.InvokerName].Args.Count > 0)
+                            {
+                                this.m_mainCodeWriter.Write(", ");
+                                WriteEdgeTraverseCallbackArgs(needArgs, edge);
+                            }
+                            this.m_mainCodeWriter.WriteLine(");");
+                        }
+                        else
+                        {
+                            this.m_mainCodeWriter.Write($"{STATES_ENUM_NAME}? nextState = {callbackName}.Invoke(");
+                            WriteEdgeTraverseCallbackArgs(needArgs, edge);
+                            this.m_mainCodeWriter.WriteLine(");");
+                        }
 
                         this.m_mainCodeWriter.WriteLine($"this.OnLog?.Invoke(\"OnTraverse result: {edge.InvokerName} -> \" + (nextState?.ToString() ?? \"null\"));");
 
@@ -374,6 +429,10 @@ namespace NiceStateMachineGenerator
                                         this.m_mainCodeWriter.WriteLine($"case {STATES_ENUM_NAME}.{subEdge.Value.StateName}:");
                                         ++this.m_mainCodeWriter.Indent;
                                         this.m_mainCodeWriter.WriteLine($"/*{subEdge.Key}*/");
+                                        if (this.m_settings.AsyncCallbacks)
+                                        {
+                                            this.m_mainCodeWriter.Write($"await ");
+                                        }
                                         this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{subEdge.Value.StateName});");
                                         this.m_mainCodeWriter.WriteLine($"break;");
                                         --this.m_mainCodeWriter.Indent;
@@ -402,6 +461,10 @@ namespace NiceStateMachineGenerator
                 switch (edge.Target.TargetType)
                 {
                 case EdgeTargetType.state:
+                    if (this.m_settings.AsyncCallbacks)
+                    {
+                        this.m_mainCodeWriter.Write($"await ");
+                    }
                     this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{edge.Target.StateName});");
                     break;
                 case EdgeTargetType.failure:
@@ -436,7 +499,14 @@ namespace NiceStateMachineGenerator
 
         private void WriteStart()
         {
-            this.m_mainCodeWriter.WriteLine($"public void Start()");
+            if (this.m_settings.AsyncCallbacks)
+            {
+                this.m_mainCodeWriter.WriteLine($"public async Task Start()");
+            }
+            else
+            {
+                this.m_mainCodeWriter.WriteLine($"public void Start()");
+            }
             this.m_mainCodeWriter.WriteLine("{");
             {
                 ++this.m_mainCodeWriter.Indent;
@@ -452,7 +522,14 @@ namespace NiceStateMachineGenerator
         private void WriteStateEnterCode(StateDescr state)
         {
             this.m_mainCodeWriter.WriteLine($"this.CurrentState = {STATES_ENUM_NAME}.{state.Name};");
-            this.m_mainCodeWriter.WriteLine($"this.OnStateEnter?.Invoke({STATES_ENUM_NAME}.{state.Name});");
+            if (this.m_settings.AsyncCallbacks)
+            {
+                this.m_mainCodeWriter.WriteLine($"await InvokeAsync(this.OnStateEnter, {STATES_ENUM_NAME}.{state.Name});");
+            }
+            else
+            {
+                this.m_mainCodeWriter.WriteLine($"this.OnStateEnter?.Invoke({STATES_ENUM_NAME}.{state.Name});");
+            }
 
             foreach (string timer in state.StopTimers)
             {
@@ -503,8 +580,15 @@ namespace NiceStateMachineGenerator
                 string callbackName = ComposeStateEnterCallback(state);
                 if (state.OnEnterEventAlluxTargets == null)
                 {
-                    //regular plain callback
-                    this.m_mainCodeWriter.WriteLine($"{callbackName}?.Invoke();");
+                    if (this.m_settings.AsyncCallbacks)
+                    {
+                        this.m_mainCodeWriter.WriteLine($"await InvokeAsync({callbackName});");
+                    }
+                    else
+                    {
+                        //regular plain callback
+                        this.m_mainCodeWriter.WriteLine($"{callbackName}?.Invoke();");
+                    }
                 }
                 else
                 {
@@ -512,7 +596,15 @@ namespace NiceStateMachineGenerator
                     this.m_mainCodeWriter.WriteLine("{"); //visibility guard
                     ++this.m_mainCodeWriter.Indent;
                     {
-                        this.m_mainCodeWriter.WriteLine($"{STATES_ENUM_NAME}? nextState = {callbackName}.Invoke();");
+                        if (this.m_settings.AsyncCallbacks)
+                        {
+                            this.m_mainCodeWriter.WriteLine($"{STATES_ENUM_NAME}? nextState = await InvokeAsync({callbackName});");
+                        }
+                        else
+                        {
+                            this.m_mainCodeWriter.WriteLine($"{STATES_ENUM_NAME}? nextState = {callbackName}.Invoke();");
+                        }
+
                         this.m_mainCodeWriter.WriteLine($"this.OnLog?.Invoke(\"OnEnter result: \" + (nextState?.ToString() ?? \"null\"));");
 
                         this.m_mainCodeWriter.WriteLine($"if (nextState != null)");
@@ -529,7 +621,14 @@ namespace NiceStateMachineGenerator
                                         this.m_mainCodeWriter.WriteLine($"case {STATES_ENUM_NAME}.{subEdge.Value.StateName}:");
                                         ++this.m_mainCodeWriter.Indent;
                                         this.m_mainCodeWriter.WriteLine($"/*{subEdge.Key}*/");
-                                        this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{subEdge.Value.StateName});");
+                                        if (this.m_settings.AsyncCallbacks)
+                                        {
+                                            this.m_mainCodeWriter.WriteLine($"await SetState({STATES_ENUM_NAME}.{subEdge.Value.StateName});");
+                                        }
+                                        else
+                                        {
+                                            this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{subEdge.Value.StateName});");
+                                        }
                                         this.m_mainCodeWriter.WriteLine($"break;");
                                         --this.m_mainCodeWriter.Indent;
                                     }
@@ -560,7 +659,15 @@ namespace NiceStateMachineGenerator
         {
             this.m_mainCodeWriter.WriteLine($"private bool m_isDisposed = false;");
             this.m_mainCodeWriter.WriteLine($"public event Action<string> OnLog;");
-            this.m_mainCodeWriter.WriteLine($"public event Action<{STATES_ENUM_NAME}> OnStateEnter;");
+
+            if (this.m_settings.AsyncCallbacks)
+            {
+                this.m_mainCodeWriter.WriteLine($"public event Func<{STATES_ENUM_NAME}, Task> OnStateEnter;");
+            }
+            else
+            {
+                this.m_mainCodeWriter.WriteLine($"public event Action<{STATES_ENUM_NAME}> OnStateEnter;");
+            }
 
             foreach (string timer in this.m_stateMachine.Timers.Keys)
             {
@@ -652,11 +759,25 @@ namespace NiceStateMachineGenerator
                     WriteCommentIfSpecified(state.OnEnterEventComment);
                     if (state.OnEnterEventAlluxTargets == null)
                     {
-                        this.m_mainCodeWriter.WriteLine($"public event Action {callbackName};");
+                        if (this.m_settings.AsyncCallbacks)
+                        {
+                            this.m_mainCodeWriter.WriteLine($"public event Func<Task> {callbackName};");
+                        }
+                        else
+                        {
+                            this.m_mainCodeWriter.WriteLine($"public event Action {callbackName};");
+                        }
                     }
                     else
                     {
-                        this.m_mainCodeWriter.WriteLine($"public event Func<{STATES_ENUM_NAME}?> {callbackName};");
+                        if (this.m_settings.AsyncCallbacks)
+                        {
+                            this.m_mainCodeWriter.WriteLine($"public event Func<{STATES_ENUM_NAME}?, Task> {callbackName};");
+                        }
+                        else
+                        {
+                            this.m_mainCodeWriter.WriteLine($"public event Func<{STATES_ENUM_NAME}?> {callbackName};");
+                        }
                     }
                 }
             }
@@ -711,39 +832,168 @@ namespace NiceStateMachineGenerator
                 && eventArgs != null
                 && eventArgs.Count > 0;
 
-            bool isGeneric = needArgs || isFunction;
+            if (!m_settings.AsyncCallbacks)
+            {
+                bool isGeneric = needArgs || isFunction;
 
-            this.m_mainCodeWriter.Write($"public event ");
-            this.m_mainCodeWriter.Write(isFunction ? "Func" : "Action");
-            if (isGeneric)
-            {
-                this.m_mainCodeWriter.Write("<");
-            };
-            if (needArgs)
-            {
-                for (int i = 0; i < eventArgs!.Count; ++i)
+                this.m_mainCodeWriter.Write($"public event ");
+                this.m_mainCodeWriter.Write(isFunction ? "Func" : "Action");
+                if (isGeneric)
                 {
-                    KeyValuePair<string, string> arg = eventArgs[i];
-                    if (i != 0)
+                    this.m_mainCodeWriter.Write("<");
+                };
+                if (needArgs)
+                {
+                    for (int i = 0; i < eventArgs!.Count; ++i)
+                    {
+                        KeyValuePair<string, string> arg = eventArgs[i];
+                        if (i != 0)
+                        {
+                            this.m_mainCodeWriter.Write(", ");
+                        };
+                        this.m_mainCodeWriter.Write(arg.Value);
+                    };
+                };
+                if (isFunction)
+                {
+                    if (needArgs)
                     {
                         this.m_mainCodeWriter.Write(", ");
                     };
-                    this.m_mainCodeWriter.Write(arg.Value);
+                    this.m_mainCodeWriter.Write($"{STATES_ENUM_NAME}?");
                 };
-            };
-            if (isFunction)
+                if (isGeneric)
+                {
+                    this.m_mainCodeWriter.Write(">");
+                }
+                this.m_mainCodeWriter.WriteLine($" {callbackName}; ");
+            }
+            else
             {
+                this.m_mainCodeWriter.Write($"public event Func<");
                 if (needArgs)
                 {
+                    for (int i = 0; i < eventArgs!.Count; ++i)
+                    {
+                        KeyValuePair<string, string> arg = eventArgs[i];
+                        if (i != 0)
+                        {
+                            this.m_mainCodeWriter.Write(", ");
+                        };
+                        this.m_mainCodeWriter.Write(arg.Value);
+                    };
                     this.m_mainCodeWriter.Write(", ");
                 };
-                this.m_mainCodeWriter.Write($"{STATES_ENUM_NAME}?");
-            };
-            if (isGeneric)
+                if (isFunction)
+                {
+                    this.m_mainCodeWriter.Write($"{STATES_ENUM_NAME}?, ");
+                };
+                this.m_mainCodeWriter.Write("Task>");
+                this.m_mainCodeWriter.WriteLine($" {callbackName}; ");
+            }
+        }
+
+        private void WriteAsyncCallbackInvoker()
+        {
+            if (!this.m_settings.AsyncCallbacks)
             {
+                return;
+            }
+
+            IEnumerable<int> argumentsCount = this.m_stateMachine.Events.Values.Select(x => x.Args.Count).Distinct().OrderBy(x => x);
+            foreach (int currentArgumentsCount in argumentsCount)
+            {
+                WriteAsyncCallbackInvoker(currentArgumentsCount);
+            }
+        }
+
+        private void WriteAsyncCallbackInvoker(int argumentsCount)
+        {
+            this.m_mainCodeWriter.Write("private async Task InvokeAsync");
+            string genericArgumentPrefix = "T";
+            if (argumentsCount > 0)
+            {
+                this.m_mainCodeWriter.Write("<");
+                WriteGenericPrefix(genericArgumentPrefix, argumentsCount, this.m_mainCodeWriter);
                 this.m_mainCodeWriter.Write(">");
             }
-            this.m_mainCodeWriter.WriteLine($" {callbackName}; ");
+
+            this.m_mainCodeWriter.Write("(Func<");
+            WriteGenericPrefix(genericArgumentPrefix, argumentsCount, this.m_mainCodeWriter);
+            if (argumentsCount > 0)
+            {
+                this.m_mainCodeWriter.Write(", ");
+            }
+            this.m_mainCodeWriter.Write("Task> callback");
+            if (argumentsCount > 0)
+            {
+                this.m_mainCodeWriter.Write(", ");
+            }
+            WriteGenericArguments(genericArgumentPrefix, argumentsCount, this.m_mainCodeWriter, writeArgumentType: true);
+            this.m_mainCodeWriter.WriteLine(")");
+            this.m_mainCodeWriter.Write("{");
+            ++this.m_mainCodeWriter.Indent;
+            WriteVerbatimCode(ASYNC_INVOKER_CODE_PART1, this.m_mainCodeWriter);
+            this.m_mainCodeWriter.Indent += 3;
+            this.m_mainCodeWriter.Write("await ((Func<");
+            WriteGenericPrefix(genericArgumentPrefix, argumentsCount, this.m_mainCodeWriter);
+            if (argumentsCount > 0)
+            {
+                this.m_mainCodeWriter.Write(", ");
+            }
+            this.m_mainCodeWriter.Write("Task>)invocation).Invoke(");
+            WriteGenericArguments(genericArgumentPrefix, argumentsCount, this.m_mainCodeWriter, writeArgumentType: false);
+            this.m_mainCodeWriter.Write(");");
+            this.m_mainCodeWriter.Indent -= 3;
+            WriteVerbatimCode(ASYNC_INVOKER_CODE_PART2, this.m_mainCodeWriter);
+            --this.m_mainCodeWriter.Indent;
+            this.m_mainCodeWriter.WriteLine("}");
+            this.m_mainCodeWriter.WriteLine("");
+        }
+
+        private void WriteGenericPrefix(string genericPrefix, int argumentsCount, IndentedTextWriter writer)
+        {
+            for (int i = 0; i < argumentsCount; i++)
+            {
+                string currentGenericArgument = genericPrefix;
+                if (argumentsCount > 1)
+                {
+                    currentGenericArgument += Convert.ToString(i);
+                }
+
+                if (i != 0)
+                {
+                    writer.Write($", ");
+                }
+
+                writer.Write($"{currentGenericArgument}");
+            }
+        }
+
+        private void WriteGenericArguments(string genericPrefix, int argumentsCount, IndentedTextWriter writer, bool writeArgumentType)
+        {
+            for (int i = 0; i < argumentsCount; i++)
+            {
+                if (i != 0)
+                {
+                    this.m_mainCodeWriter.Write(", ");
+                }
+
+                if (writeArgumentType)
+                {
+                    string currentGenericArgument = genericPrefix;
+                    if (argumentsCount > 1)
+                    {
+                        currentGenericArgument += Convert.ToString(i);
+                    }
+
+                    this.m_mainCodeWriter.Write($"{currentGenericArgument} argument{i}");
+                }
+                else
+                {
+                    this.m_mainCodeWriter.Write($"argument{i}");
+                }
+            }
         }
 
         private static Regex s_splitRegex = new Regex(@"\r?\n", RegexOptions.Compiled);
@@ -780,6 +1030,30 @@ public interface ITimer: IDisposable
 public delegate ITimer CreateTimerDelegate(string timerName, TimerFiredCallback callback);
 
 ";
+
+        private const string ASYNC_INVOKER_CODE_PART1 =
+@"
+if (callback == null)
+{
+    return;
+}
+
+Delegate[] invocationList = callback.GetInvocationList();
+if (invocationList != null && invocationList.Length > 0)
+{
+    foreach (Delegate invocation in invocationList)
+    {
+        try
+        {";
+        private const string ASYNC_INVOKER_CODE_PART2 =
+@"
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($""Error processing callback handler: {ex.Message}"", ex);
+        }
+    }
+}";
 
     }
 }

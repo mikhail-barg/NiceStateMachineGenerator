@@ -1,0 +1,21 @@
+digraph {
+    edge[fontname = "tahoma"; fontsize = 8];
+    node[fontname = "tahoma bold"; fontsize = 10];
+    Start [shape = Mrecord; label = "{ Start }"];
+    Authorized [shape = Mrecord; label = "{ Authorized }"; color = "/spectral11/9"];
+    LoadCategories [shape = Mrecord; label = "{ LoadCategories | \-\> Load categories from external API}"; color = "/spectral11/10"];
+    CategoriesLoaded [shape = Mrecord; label = "{ CategoriesLoaded }"; color = "/spectral11/9"];
+    LoadGoodsList [shape = Mrecord; label = "{ LoadGoodsList | \-\> Load goods from external API}"; color = "/spectral11/10"];
+    GoodsListLoaded [shape = Mrecord; label = "{ GoodsListLoaded }"; color = "/spectral11/9"];
+    Crash [shape = Mrecord; label = "{ Crash }"; style = bold; color = "/spectral11/4"];
+    Start -> Authorized [label = "authorized"];
+    Start -> Crash [label = "request_failed"];
+    Start -> Start [label = "unathorized"][color = "/spectral11/2"];
+    Authorized -> LoadCategories [label = "external_event_get_categories"][color = "/spectral11/10"];
+    LoadCategories -> CategoriesLoaded [label = "request_completed"];
+    LoadCategories -> Start [label = "unathorized"][color = "/spectral11/2"];
+    CategoriesLoaded -> LoadGoodsList [label = "external_event_user_choose_category"][color = "/spectral11/10"];
+    LoadGoodsList -> GoodsListLoaded [label = "request_completed"];
+    LoadGoodsList -> Start [label = "unathorized"][color = "/spectral11/2"];
+    GoodsListLoaded -> Start [label = "unathorized"][color = "/spectral11/2"];
+}

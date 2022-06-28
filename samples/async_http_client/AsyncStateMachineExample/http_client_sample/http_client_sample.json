@@ -1,0 +1,127 @@
+// For colors, read https://graphviz.org/doc/info/colors.html
+{
+	"events": {
+		"authorized": {
+			"after_states": ["Start"],
+			"args": {
+				"username": "string",
+				"userId": "ulong",
+				"firstName": "string",
+				"secondName": "string",
+				"middleName": "string"
+			}
+		},
+		"request_failed": {
+			"args": {
+				"errorMessage": "string"
+			}
+		},
+		"external_event_user_choose_category": {
+			"args": {
+				"userId": "ulong",
+				"choosenCategory": "string",
+				"analyticsSelectionLocalTime": "DateTime",
+				"analyticsRegion": "string",
+				"analyticsIsVPNEnabled": "bool"
+			}
+		},
+		"external_event_get_categories": {},
+		"request_completed": {},
+		"unathorized": {}
+	},
+	"start_state": "Start",
+	"states": {
+		"Start": {
+			"on_event": {
+				"authorized": "Authorized",
+				"request_failed": "Crash",
+				"request_completed": null,
+				"external_event_user_choose_category": null,
+				"external_event_get_categories": null,
+				"unathorized": {
+					"state": "Start",
+					"color": "/spectral11/2"
+				}
+			}
+		},
+		"Authorized": {
+			"on_event": {
+				"authorized": null,
+				"request_failed": null,
+				"request_completed": null,
+				"external_event_user_choose_category": null,
+				"external_event_get_categories": 
+				{
+					"state": "LoadCategories",
+					"color": "/spectral11/10"
+				},
+				"unathorized": null
+			},
+			"color": "/spectral11/9"
+		},
+		"LoadCategories": {
+			"on_event": {
+				"authorized": null,
+				"request_failed": null,
+				"external_event_user_choose_category": null,
+				"external_event_get_categories": null,
+				"request_completed": "CategoriesLoaded",
+				"unathorized": {
+					"state": "Start",
+					"color": "/spectral11/2"
+				}
+			},
+			"on_enter": true,
+			"on_enter_comment": "Load categories from external API",
+			"color": "/spectral11/10"
+		},
+		"CategoriesLoaded": {
+			"on_event": {
+				"authorized": null,
+				"request_failed": null,
+				"external_event_user_choose_category": {
+					"state": "LoadGoodsList",
+					"color": "/spectral11/10"
+				},
+				"external_event_get_categories": null,
+				"request_completed": null,
+				"unathorized": null
+			},
+			"color": "/spectral11/9"
+		},
+		"LoadGoodsList": {
+			"on_event": {
+				"authorized": null,
+				"request_failed": null,
+				"request_completed": "GoodsListLoaded",
+				"external_event_user_choose_category": null,
+				"external_event_get_categories": null,
+				"unathorized": {
+					"state": "Start",
+					"color": "/spectral11/2"
+				}
+			},
+			"on_enter": true,
+			"on_enter_comment": "Load goods from external API",
+			"color": "/spectral11/10"
+		},
+		"GoodsListLoaded": {
+			"on_event": {
+				"authorized": null,
+				"request_failed": null,
+				"request_completed": null,
+				"external_event_user_choose_category": null,
+				"external_event_get_categories": null,
+				"unathorized": {
+					"state": "Start",
+					"color": "/spectral11/2"
+				}
+			},
+			"color": "/spectral11/9"
+		},
+		"Crash": {
+			"final": true,
+			"color": "/spectral11/4"
+		}
+	}
+}

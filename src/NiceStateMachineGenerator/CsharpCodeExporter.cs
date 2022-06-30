@@ -1015,6 +1015,7 @@ namespace NiceStateMachineGenerator
         private const string HEADER_CODE =
 @"
 using System;
+using System.Threading.Tasks;
 ";
 
         private const string TIMER_CODE =
@@ -1050,7 +1051,8 @@ if (invocationList != null && invocationList.Length > 0)
         }
         catch (Exception ex)
         {
-            throw new Exception($""Error processing callback handler: {ex.Message}"", ex);
+            this.OnLog?.Invoke($""Error processing callback handler: {ex.Message}"");
+            throw;
         }
     }
 }";

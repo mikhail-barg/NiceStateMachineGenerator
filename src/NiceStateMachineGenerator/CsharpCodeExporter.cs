@@ -1015,6 +1015,7 @@ namespace NiceStateMachineGenerator
         private const string HEADER_CODE =
 @"
 using System;
+using System.Threading.Tasks;
 ";
 
         private const string TIMER_CODE =

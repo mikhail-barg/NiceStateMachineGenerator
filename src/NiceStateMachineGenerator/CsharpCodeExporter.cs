@@ -193,7 +193,7 @@ namespace NiceStateMachineGenerator
                                     this.m_mainCodeWriter.Write("await ");
                                 }
 
-                                this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{state.NextStateName});");
+                                this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{state.NextStateName}).ConfigureAwait(false);");
                             }
                             this.m_mainCodeWriter.WriteLine("break;");
                         }
@@ -374,7 +374,7 @@ namespace NiceStateMachineGenerator
                             this.m_mainCodeWriter.Write(", ");
                             WriteEdgeTraverseCallbackArgs(needArgs, edge);
                         }
-                        this.m_mainCodeWriter.WriteLine(");");
+                        this.m_mainCodeWriter.WriteLine(").ConfigureAwait(false);");
                         --this.m_mainCodeWriter.Indent;
                         this.m_mainCodeWriter.WriteLine("}");
                     }
@@ -404,7 +404,7 @@ namespace NiceStateMachineGenerator
                                 this.m_mainCodeWriter.Write(", ");
                                 WriteEdgeTraverseCallbackArgs(needArgs, edge);
                             }
-                            this.m_mainCodeWriter.WriteLine(");");
+                            this.m_mainCodeWriter.WriteLine(").ConfigureAwait(false);");
                         }
                         else
                         {
@@ -433,7 +433,7 @@ namespace NiceStateMachineGenerator
                                         {
                                             this.m_mainCodeWriter.Write($"await ");
                                         }
-                                        this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{subEdge.Value.StateName});");
+                                        this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{subEdge.Value.StateName}).ConfigureAwait(false);");
                                         this.m_mainCodeWriter.WriteLine($"break;");
                                         --this.m_mainCodeWriter.Indent;
                                     }
@@ -463,9 +463,13 @@ namespace NiceStateMachineGenerator
                 case EdgeTargetType.state:
                     if (this.m_settings.AsyncCallbacks)
                     {
-                        this.m_mainCodeWriter.Write($"await ");
+                        this.m_mainCodeWriter.WriteLine($"await SetState({STATES_ENUM_NAME}.{edge.Target.StateName}).ConfigureAwait(false);");
                     }
-                    this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{edge.Target.StateName});");
+                    else
+                    {
+
+                        this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{edge.Target.StateName});");
+                    }
                     break;
                 case EdgeTargetType.failure:
                     this.m_mainCodeWriter.WriteLine($"throw new Exception(\"Event {edge.InvokerName} is forbidden in state \" + this.CurrentState);");
@@ -524,7 +528,7 @@ namespace NiceStateMachineGenerator
             this.m_mainCodeWriter.WriteLine($"this.CurrentState = {STATES_ENUM_NAME}.{state.Name};");
             if (this.m_settings.AsyncCallbacks)
             {
-                this.m_mainCodeWriter.WriteLine($"await InvokeAsync(this.OnStateEnter, {STATES_ENUM_NAME}.{state.Name});");
+                this.m_mainCodeWriter.WriteLine($"await InvokeAsync(this.OnStateEnter, {STATES_ENUM_NAME}.{state.Name}).ConfigureAwait(false);");
             }
             else
             {
@@ -582,7 +586,7 @@ namespace NiceStateMachineGenerator
                 {
                     if (this.m_settings.AsyncCallbacks)
                     {
-                        this.m_mainCodeWriter.WriteLine($"await InvokeAsync({callbackName});");
+                        this.m_mainCodeWriter.WriteLine($"await InvokeAsync({callbackName}).ConfigureAwait(false);");
                     }
                     else
                     {
@@ -598,7 +602,7 @@ namespace NiceStateMachineGenerator
                     {
                         if (this.m_settings.AsyncCallbacks)
                         {
-                            this.m_mainCodeWriter.WriteLine($"{STATES_ENUM_NAME}? nextState = await InvokeAsync({callbackName});");
+                            this.m_mainCodeWriter.WriteLine($"{STATES_ENUM_NAME}? nextState = await InvokeAsync({callbackName}).ConfigureAwait(false);");
                         }
                         else
                         {
@@ -623,7 +627,7 @@ namespace NiceStateMachineGenerator
                                         this.m_mainCodeWriter.WriteLine($"/*{subEdge.Key}*/");
                                         if (this.m_settings.AsyncCallbacks)
                                         {
-                                            this.m_mainCodeWriter.WriteLine($"await SetState({STATES_ENUM_NAME}.{subEdge.Value.StateName});");
+                                            this.m_mainCodeWriter.WriteLine($"await SetState({STATES_ENUM_NAME}.{subEdge.Value.StateName}).ConfigureAwait(false);");
                                         }
                                         else
                                         {
@@ -943,7 +947,7 @@ namespace NiceStateMachineGenerator
             }
             this.m_mainCodeWriter.Write("Task>)invocation).Invoke(");
             WriteGenericArguments(genericArgumentPrefix, argumentsCount, this.m_mainCodeWriter, writeArgumentType: false);
-            this.m_mainCodeWriter.Write(");");
+            this.m_mainCodeWriter.Write(").ConfigureAwait(false);");
             this.m_mainCodeWriter.Indent -= 3;
             WriteVerbatimCode(ASYNC_INVOKER_CODE_PART2, this.m_mainCodeWriter);
             --this.m_mainCodeWriter.Indent;

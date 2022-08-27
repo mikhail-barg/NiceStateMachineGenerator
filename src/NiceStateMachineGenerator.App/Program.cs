@@ -187,6 +187,7 @@ namespace NiceStateMachineGenerator.App
             Console.WriteLine($"\t\tIf empty, null, or not specified, the code is written to main output file");
             Console.WriteLine($"Also any option for exporter may be overriden via cmdline args. Nesting is specified by ':'");
             Console.WriteLine($"\t\tE.g.: '--c_sharp:ClassName=MyClass' or '--cpp:NamespaceName ns'");
+            Console.WriteLine($"-d/--daemon true : start generator in daemon mode (automatically regenerates source code and graph on changes)");
         }
 
         static Config GetConfig(string[] args)

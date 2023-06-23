@@ -11,6 +11,7 @@ namespace NiceStateMachineGenerator.App
         dot,
         cs,
         cpp,
+        d2,
 
         validate, //just validate
         all
@@ -28,6 +29,8 @@ namespace NiceStateMachineGenerator.App
                 return ".cs";
             case Mode.cpp:
                 return ".h";
+            case Mode.d2:
+                return ".d2";
 
             case Mode.all:
             case Mode.validate:

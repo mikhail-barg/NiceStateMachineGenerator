@@ -1,0 +1,76 @@
+classes: {
+    state: {
+        shape: rectangle
+        style.border-radius: 10
+    }
+    event: {
+    }
+    timer: {
+        style.stroke-dash: 5
+    }
+    no-change: {
+        style.stroke-dash: 1
+    }
+    next: {
+        style.stroke-width: 4
+    }
+}
+
+in_call: {
+    class: state
+}
+session_termination_process: {
+    class: state
+}
+awaiting_asr_fully_finalized: {
+    class: state
+}
+asr_fully_finalized: {
+    class: state
+}
+early_termination: {
+    class: state
+}
+termination: {
+    class: state
+    style.double-border: true
+}
+in_call -> awaiting_asr_fully_finalized {
+    class: event
+    label: telephony_session_terminated
+}
+in_call -> session_termination_process {
+    class: event
+    label: session_termination_request
+}
+in_call -> early_termination {
+    class: event
+    label: script_final_state_reached
+}
+session_termination_process -> awaiting_asr_fully_finalized {
+    class: event
+    label: telephony_session_terminated
+}
+session_termination_process -> early_termination {
+    class: event
+    label: script_final_state_reached
+}
+awaiting_asr_fully_finalized -> asr_fully_finalized {
+    class: event
+    label: asr_fully_finalized
+}
+awaiting_asr_fully_finalized -> early_termination {
+    class: event
+    label: script_final_state_reached
+}
+awaiting_asr_fully_finalized -> asr_fully_finalized {
+    class: timer
+    label: asr_timeout
+}
+asr_fully_finalized -> termination {
+    class: event
+    label: script_final_state_reached
+}
+early_termination -> termination {
+    class: next
+}

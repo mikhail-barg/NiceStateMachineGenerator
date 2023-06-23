@@ -64,8 +64,7 @@ namespace NiceStateMachineGenerator.App
                 // We need to get rid of duplicate events
                 // So current hack is to ignore any changes in 200ms from last event
                 // Read more at https://weblogs.asp.net/ashben/31773
-                fileSystemWatcher.Changed += (object _, FileSystemEventArgs eventArgs) =>
-                {
+                fileSystemWatcher.Changed += (object _, FileSystemEventArgs eventArgs) => {
                     lock (lockObject)
                     {
                         // We can get real last write time via File.GetLastWriteTime(eventArgs.FullPath), but DateTime.Now will do fine
@@ -85,7 +84,7 @@ namespace NiceStateMachineGenerator.App
                             Console.WriteLine($"Rendering Graphviz diagram at {eventArgs.FullPath}");
                             try
                             {
-                                Process.Start("dot", $"-Tpng -O {eventArgs.FullPath}.dot");
+                                RunGraphwiz(eventArgs.FullPath);
                                 Console.WriteLine("Render complete");
                             }
                             catch (Exception e)
@@ -128,26 +127,27 @@ namespace NiceStateMachineGenerator.App
 
             switch (config.mode)
             {
-                case Mode.validate:
-                    Console.WriteLine("No file output mode specified");
-                    return;
-                case Mode.all:
-                    {
-                        string outFile = config.output ?? sourceFile;
-                        ExportSingleMode(stateMachine, outFile + Mode.dot.ToExtension(), config.out_common, Mode.dot, config);
-                        ExportSingleMode(stateMachine, outFile + Mode.cs.ToExtension(), config.out_common, Mode.cs, config);
-                        ExportSingleMode(stateMachine, outFile + Mode.cpp.ToExtension(), config.out_common, Mode.cpp, config);
-                    }
-                    break;
-                default:
-                    ExportSingleMode(
-                        stateMachine,
-                        config.output ?? sourceFile + config.mode.ToExtension(),
-                        config.out_common,
-                        config.mode,
-                        config
-                    );
-                    break;
+            case Mode.validate:
+                Console.WriteLine("No file output mode specified");
+                return;
+            case Mode.all:
+                {
+                    string outFile = config.output ?? sourceFile;
+                    ExportSingleMode(stateMachine, outFile + Mode.dot.ToExtension(), config.out_common, Mode.dot, config);
+                    ExportSingleMode(stateMachine, outFile + Mode.d2.ToExtension(), config.out_common, Mode.d2, config);
+                    ExportSingleMode(stateMachine, outFile + Mode.cs.ToExtension(), config.out_common, Mode.cs, config);
+                    ExportSingleMode(stateMachine, outFile + Mode.cpp.ToExtension(), config.out_common, Mode.cpp, config);
+                }
+                break;
+            default:
+                ExportSingleMode(
+                    stateMachine,
+                    config.output ?? sourceFile + config.mode.ToExtension(),
+                    config.out_common,
+                    config.mode,
+                    config
+                );
+                break;
             }
         }
 
@@ -158,12 +158,23 @@ namespace NiceStateMachineGenerator.App
             {
             case Mode.dot:
                 GraphwizExporter.Export(stateMachine, outFileName, config.graphwiz);
+                if (config.run_dot)
+                {
+                    RunGraphwiz(outFileName);
+                }
                 break;
             case Mode.cs:
                 CsharpCodeExporter.Export(stateMachine, outFileName, outCommonCodeFileName, config.c_sharp);
                 break;
             case Mode.cpp:
                 CppCodeExporter.Export(stateMachine, outFileName, config.cpp);
+                break;
+            case Mode.d2:
+                D2Exporter.Export(stateMachine, outFileName, config.d2);
+                if (config.run_d2)
+                {
+                    RunD2(outFileName, config);
+                }
                 break;
             default:
                 throw new Exception($"Unexpected output mode '{mode}'. Supported modes are: {String.Join(", ", Enum.GetNames<Mode>())}");
@@ -190,21 +201,38 @@ namespace NiceStateMachineGenerator.App
             Console.WriteLine($"-d/--daemon true : start generator in daemon mode (automatically regenerates source code and graph on changes)");
         }
 
-        static Config GetConfig(string[] args)
+        private static void RunGraphwiz(string dotFileName)
+        {
+            Console.WriteLine("Executing Graphwiz/dot");
+            using (Process gw = Process.Start("dot", $"-Tpng -O {dotFileName}"))
+            {
+                gw.WaitForExit();
+            }
+        }
+
+        private static void RunD2(string d2FileName, Config config)
+        {
+            Console.WriteLine("Executing D2");
+            using (Process gw = Process.Start("d2", $"-l {config.d2_layout} -t {config.d2_theme} {d2FileName} {d2FileName}.png"))
+            {
+                gw.WaitForExit();
+            }
+        }
+
+        private static Config GetConfig(string[] args)
         { 
             ConfigurationBuilder builder = new ConfigurationBuilder();
             //builder.SetBasePath(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location));
 
 
-            Dictionary<string, string> switchMappings = new Dictionary<string, string>()
-            {
+            Dictionary<string, string> switchMappings = new Dictionary<string, string>() {
                 { "-c", "config" },
                 { "-o", "output" },
                 { "-t", "out_common"},
                 { "-m", "mode" },
                 { "-d", "daemon" },
             };
-            ValidateArgs(args, switchMappings);
+            //ValidateArgs(args, switchMappings);
             builder.AddCommandLine(args, switchMappings);
 
             //Config config = builder.Build().Get<Config>();
@@ -228,7 +256,7 @@ namespace NiceStateMachineGenerator.App
         private static void ValidateArgs(string[] args, Dictionary<string, string> validArguments)
         {
             Console.WriteLine("Parsing argument keys");
-            string[] keys = args.Where((c,i) => i % 2 == 0).ToArray();
+            string[] keys = args.Where((c, i) => i % 2 == 0).ToArray();
 
             foreach (string key in keys)
             {

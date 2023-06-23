@@ -4,6 +4,7 @@
 
 #include <stdexcept>
 #include <functional>
+#include <optional>
 
 
 namespace generated
@@ -11,7 +12,7 @@ namespace generated
     
     template<class T>
     concept Timer = requires(T t) {
-        { t.StartOrReset() };
+        { t.StartOrReset(double timerDelaySeconds) };
         { t.Stop() };
     };
     
@@ -19,14 +20,14 @@ namespace generated
     using TimerFiredCallback = void(*)(const T* timer);
     
     template<Timer T>
-    using TimerFactory = T*(*)(const char* timerName, double timerDelaySeconds, TimerFiredCallback<T> callback);
+    using TimerFactory = T*(*)(const char* timerName, TimerFiredCallback<T> callback);
     
     
     template <Timer T>
-    class StateMachine
+    class call_handler
     {
     public:
-        enum class States
+        enum class State
         {
             in_call,
             session_termination_process,
@@ -49,42 +50,41 @@ namespace generated
         
         
     private:
-        States m_currentState = States::in_call;
+        State m_currentState = State::in_call;
         T* asr_timeout;
         
     public:
-        StateMachine(TimerFactory<T> timerFactory)
+        call_handler(TimerFactory<T> timerFactory)
         {
-            TimerFiredCallback<T> timerCallback = std::bind(&StateMachine::OnTimer, this, std::placeholders::_1);
-            asr_timeout = timerFactory("asr_timeout", 10, timerCallback);
-            asr_timeout->Stop();
+            TimerFiredCallback<T> timerCallback = std::bind(&call_handler::OnTimer, this, std::placeholders::_1);
+            asr_timeout = timerFactory("asr_timeout", timerCallback);
         }
         
-        ~StateMachine()
+        ~call_handler()
         {
             delete asr_timeout;
         }
         
-        States GetCurrentState()
+        State GetCurrentState()
         {
             return m_currentState;
         }
         
         void Start()
         {
-            m_currentState = States::in_call;
+            m_currentState = State::in_call;
         }
         
         void ProcessEvent__telephony_session_terminated()
         {
             switch (m_currentState)
             {
-            case States::in_call:
-                SetState(States::awaiting_asr_fully_finalized);
+            case State::in_call:
+                SetState(State::awaiting_asr_fully_finalized);
                 break;
                 
-            case States::session_termination_process:
-                SetState(States::awaiting_asr_fully_finalized);
+            case State::session_termination_process:
+                SetState(State::awaiting_asr_fully_finalized);
                 break;
                 
             default:
@@ -96,11 +96,11 @@ namespace generated
         {
             switch (m_currentState)
             {
-            case States::awaiting_asr_fully_finalized:
-                SetState(States::asr_fully_finalized);
+            case State::awaiting_asr_fully_finalized:
+                SetState(State::asr_fully_finalized);
                 break;
                 
-            case States::asr_fully_finalized:
+            case State::asr_fully_finalized:
                 break;
                 
             default:
@@ -112,20 +112,20 @@ namespace generated
         {
             switch (m_currentState)
             {
-            case States::in_call:
-                SetState(States::early_termination);
+            case State::in_call:
+                SetState(State::early_termination);
                 break;
                 
-            case States::session_termination_process:
-                SetState(States::early_termination);
+            case State::session_termination_process:
+                SetState(State::early_termination);
                 break;
                 
-            case States::awaiting_asr_fully_finalized:
-                SetState(States::early_termination);
+            case State::awaiting_asr_fully_finalized:
+                SetState(State::early_termination);
                 break;
                 
-            case States::asr_fully_finalized:
-                SetState(States::termination);
+            case State::asr_fully_finalized:
+                SetState(State::termination);
                 break;
                 
             default:
@@ -137,17 +137,17 @@ namespace generated
         {
             switch (m_currentState)
             {
-            case States::in_call:
-                SetState(States::session_termination_process);
+            case State::in_call:
+                SetState(State::session_termination_process);
                 break;
                 
-            case States::session_termination_process:
+            case State::session_termination_process:
                 break;
                 
-            case States::awaiting_asr_fully_finalized:
+            case State::awaiting_asr_fully_finalized:
                 break;
                 
-            case States::asr_fully_finalized:
+            case State::asr_fully_finalized:
                 break;
                 
             default:
@@ -160,10 +160,10 @@ namespace generated
         {
             switch (m_currentState)
             {
-            case States::awaiting_asr_fully_finalized:
+            case State::awaiting_asr_fully_finalized:
                 if (timer == asr_timeout)
                 {
-                    SetState(States::asr_fully_finalized);
+                    SetState(State::asr_fully_finalized);
                 }
                 else 
                 {
@@ -176,39 +176,39 @@ namespace generated
             }
         }
         
-        void SetState(States state)
+        void SetState(State state)
         {
             switch (state)
             {
-            case States::in_call:
-                m_currentState = States::in_call;
+            case State::in_call:
+                m_currentState = State::in_call;
                 break;
                 
-            case States::session_termination_process:
-                m_currentState = States::session_termination_process;
+            case State::session_termination_process:
+                m_currentState = State::session_termination_process;
                 if (OnStateEnter__session_termination_process) { OnStateEnter__session_termination_process(); }
                 break;
                 
-            case States::awaiting_asr_fully_finalized:
-                m_currentState = States::awaiting_asr_fully_finalized;
-                asr_timeout->StartOrReset();
+            case State::awaiting_asr_fully_finalized:
+                m_currentState = State::awaiting_asr_fully_finalized;
+                asr_timeout->StartOrReset(10);
                 if (OnStateEnter__awaiting_asr_fully_finalized) { OnStateEnter__awaiting_asr_fully_finalized(); }
                 break;
                 
-            case States::asr_fully_finalized:
-                m_currentState = States::asr_fully_finalized;
+            case State::asr_fully_finalized:
+                m_currentState = State::asr_fully_finalized;
                 asr_timeout->Stop();
                 if (OnStateEnter__asr_fully_finalized) { OnStateEnter__asr_fully_finalized(); }
                 break;
                 
-            case States::early_termination:
-                m_currentState = States::early_termination;
+            case State::early_termination:
+                m_currentState = State::early_termination;
                 if (OnStateEnter__early_termination) { OnStateEnter__early_termination(); }
-                SetState(States::termination);
+                SetState(State::termination);
                 break;
                 
-            case States::termination:
-                m_currentState = States::termination;
+            case State::termination:
+                m_currentState = State::termination;
                 if (OnStateEnter__termination) { OnStateEnter__termination(); }
                 break;
                 

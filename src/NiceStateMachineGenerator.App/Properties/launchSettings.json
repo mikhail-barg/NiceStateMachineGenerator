@@ -2,7 +2,7 @@
   "profiles": {
     "call_handler": {
       "commandName": "Project",
-      "commandLineArgs": "../../../../../samples/call_handler/sm.json"
+      "commandLineArgs": "../../../../../samples/call_handler/call_handler.json -m all --run_d2 true --run_dot true"
     },
     "sip_invite": {
       "commandName": "Project",

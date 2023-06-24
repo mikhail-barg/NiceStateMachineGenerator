@@ -1,0 +1,172 @@
+classes: {
+    state: {
+        shape: class
+        style.border-radius: 10
+    }
+    event: {
+    }
+    timer: {
+        style.stroke-dash: 5
+    }
+    no-change: {
+        style.stroke-dash: 1
+    }
+    next: {
+        style.stroke-width: 4
+    }
+}
+
+Calling_Start: {
+    class: state
+    label: Calling_Start (start)
+    +Timer_A
+    +Timer_B
+    \#on_enter(): INVITE sent
+}
+Calling_Retransmit: {
+    class: state
+    -Timer_A
+    +Timer_A2
+    \#on_enter(): INVITE sent
+}
+Proceeding: {
+    class: state
+    -Timer_A
+    -Timer_A2
+    -Timer_B
+}
+Completed: {
+    class: state
+    -Timer_A
+    -Timer_A2
+    -Timer_B
+    +Timer_D
+}
+Terminated: {
+    class: state
+    label: Terminated (final)
+    \#on_enter(): The client transaction MUST be destroyed the instant it enters the 'Terminated' state
+}
+Calling_Start -> Proceeding {
+    class: event
+    label: |||md
+        SIP_1xx
+        [event_only] -> Furthermore, the provisional response MUST be passed to the TU
+    |||
+}
+Calling_Start -> Terminated {
+    class: event
+    label: |||md
+        SIP_2xx
+        [event_only] -> and the response MUST be passed up to the TU
+    |||
+}
+Calling_Start -> Completed {
+    class: event
+    label: |||md
+        SIP_300_699
+        [event_only] -> The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request
+    |||
+}
+Calling_Start -> Terminated {
+    class: event
+    label: |||md
+        TransportError
+        [event_only] -> Inform TU
+    |||
+}
+Calling_Start -> Calling_Retransmit {
+    class: timer
+    label: |||md
+        Timer_A
+    |||
+}
+Calling_Retransmit -> Proceeding {
+    class: event
+    label: |||md
+        SIP_1xx
+        [event_only] -> Furthermore, the provisional response MUST be passed to the TU
+    |||
+}
+Calling_Retransmit -> Terminated {
+    class: event
+    label: |||md
+        SIP_2xx
+        [event_only] -> and the response MUST be passed up to the TU
+    |||
+}
+Calling_Retransmit -> Completed {
+    class: event
+    label: |||md
+        SIP_300_699
+        [event_only] -> The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request
+    |||
+}
+Calling_Retransmit -> Terminated {
+    class: event
+    label: |||md
+        TransportError
+        [event_only] -> Inform TU
+    |||
+}
+Calling_Retransmit -> Calling_Retransmit {
+    class: timer
+    label: |||md
+        Timer_A2
+    |||
+}
+Calling_Retransmit -> Terminated {
+    class: timer
+    label: |||md
+        Timer_B
+        [event_only] -> the client transaction SHOULD inform the TU that a timeout has occurred.
+    |||
+}
+Proceeding -> Proceeding {
+    class: event
+    label: |||md
+        SIP_1xx
+        [event_only] -> Any further provisional responses MUST be passed up to the TU while in the Proceeding state.
+    |||
+}
+Proceeding -> Terminated {
+    class: event
+    label: |||md
+        SIP_2xx
+        [event_only] -> and the response MUST be passed up to the TU
+    |||
+}
+Proceeding -> Completed {
+    class: event
+    label: |||md
+        SIP_300_699
+        [event_only] -> The client transaction MUST pass the received response up to the TU, and the client transaction MUST generate an ACK request
+    |||
+}
+Proceeding -> Terminated {
+    class: event
+    label: |||md
+        TransportError
+        [event_only] -> Inform TU
+    |||
+}
+Completed -> Completed {
+    class: event
+    label: |||md
+        SIP_300_699
+        [source_and_event] -> Any retransmissions of the final response that are received while in the 'Completed' state MUST cause the ACK to be re-passed to the transport layer for retransmission, but the newly received response MUST NOT be passed up to the TU.
+    |||
+}
+Completed -> Terminated {
+    class: event
+    label: |||md
+        TransportError
+        [event_only] -> Inform TU
+    |||
+}
+Completed -> Terminated {
+    class: timer
+    label: |||md
+        Timer_D
+    |||
+}

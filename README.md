@@ -22,8 +22,9 @@ Let's pass this declaration to a formal validation procedure to ensure all the c
 And then, let's generate a simple code class to wrap all this logic, to use in actual program.
 
 The DSL we propose is language-agnostic enough to support any target language (at least we hope so). For now we have built-in support for C# and C++(20) targets. 
-We also support exporting to [Graphviz](https://graphviz.org/) [DOT](https://graphviz.org/doc/info/lang.html) format which allows making nice visualizations like this:
-[![call_handler sample](samples/call_handler/sm.json.dot.png)](https://github.com/mikhail-barg/NiceStateMachineGenerator/tree/main/samples/call_handler)
+We also support exporting to following visualization formats: 
+* [Graphviz](https://graphviz.org/) [DOT](https://graphviz.org/doc/info/lang.html), sample: [![call_handler sample](samples/call_handler/call_handler.json.dot.png)](https://github.com/mikhail-barg/NiceStateMachineGenerator/tree/main/samples/call_handler)
+* [D2](https://d2lang.com/), simple sample: ![call_handler simple sample](samples/call_handler/call_handler.json.d2-simple.png) advanced sample: ![call_handler sample](samples/call_handler/call_handler.json.d2.png)
 
 ## The DSL
 

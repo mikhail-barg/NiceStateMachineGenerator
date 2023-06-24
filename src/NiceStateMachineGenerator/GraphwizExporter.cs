@@ -163,10 +163,6 @@ namespace NiceStateMachineGenerator
                 };
             };
             writer.Write($"{sourceState.Name} -> {edgeTarget.StateName ?? sourceState.Name} [label = \"{label}\"]");
-            if (edgeTarget.TargetType == EdgeTargetType.no_change)
-            {
-                writer.Write("[style = dotted]");
-            }
             writer.WriteLine(";");
         }
 

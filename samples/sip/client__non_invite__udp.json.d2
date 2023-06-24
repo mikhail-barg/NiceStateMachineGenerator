@@ -1,0 +1,181 @@
+classes: {
+    state: {
+        shape: class
+        style.border-radius: 10
+    }
+    event: {
+    }
+    timer: {
+        style.stroke-dash: 5
+    }
+    no-change: {
+        style.stroke-dash: 1
+    }
+    next: {
+        style.stroke-width: 4
+    }
+}
+
+Trying_Start: {
+    class: state
+    label: Trying_Start (start)
+    +Timer_F
+    +Timer_E
+    \#on_enter(): send request
+}
+Trying_Retransmit: {
+    class: state
+    +Timer_E: *
+}
+Proceeding: {
+    class: state
+    -Timer_E
+    +Timer_E2
+}
+Completed: {
+    class: state
+    -Timer_E
+    -Timer_E2
+    -Timer_F
+    +Timer_K
+}
+Completed_Consume: {
+    class: state
+}
+Terminated: {
+    class: state
+    label: Terminated (final)
+    \#on_enter(): The client transaction MUST be destroyed the instant it enters the 'Terminated' state
+}
+Trying_Start -> Proceeding {
+    class: event
+    label: |||md
+        SIP_1xx
+        [event_only] -> the response MUST be passed to the TU
+    |||
+}
+Trying_Start -> Completed {
+    class: event
+    label: |||md
+        SIP_200_699
+        [event_only] -> the response MUST be passed to the TU
+    |||
+}
+Trying_Start -> Terminated {
+    class: event
+    label: |||md
+        TransportError
+        [event_only] -> the client transaction SHOULD inform the TU about the error
+    |||
+}
+Trying_Start -> Terminated {
+    class: timer
+    label: |||md
+        Timer_F
+        [event_only] -> the client transaction SHOULD inform the TU about the timeout
+    |||
+}
+Trying_Start -> Trying_Retransmit {
+    class: timer
+    label: |||md
+        Timer_E
+        [event_only] -> retransmit
+    |||
+}
+Trying_Retransmit -> Proceeding {
+    class: event
+    label: |||md
+        SIP_1xx
+        [event_only] -> the response MUST be passed to the TU
+    |||
+}
+Trying_Retransmit -> Completed {
+    class: event
+    label: |||md
+        SIP_200_699
+        [event_only] -> the response MUST be passed to the TU
+    |||
+}
+Trying_Retransmit -> Terminated {
+    class: event
+    label: |||md
+        TransportError
+        [event_only] -> the client transaction SHOULD inform the TU about the error
+    |||
+}
+Trying_Retransmit -> Terminated {
+    class: timer
+    label: |||md
+        Timer_F
+        [event_only] -> the client transaction SHOULD inform the TU about the timeout
+    |||
+}
+Trying_Retransmit -> Trying_Retransmit {
+    class: timer
+    label: |||md
+        Timer_E
+        [event_only] -> retransmit
+    |||
+}
+Proceeding -> Proceeding {
+    class: event
+    label: |||md
+        SIP_1xx
+        [event_only] -> the response MUST be passed to the TU
+    |||
+}
+Proceeding -> Completed {
+    class: event
+    label: |||md
+        SIP_200_699
+        [event_only] -> the response MUST be passed to the TU
+    |||
+}
+Proceeding -> Terminated {
+    class: event
+    label: |||md
+        TransportError
+        [event_only] -> the client transaction SHOULD inform the TU about the error
+    |||
+}
+Proceeding -> Terminated {
+    class: timer
+    label: |||md
+        Timer_F
+        [event_only] -> the client transaction SHOULD inform the TU about the timeout
+    |||
+}
+Proceeding -> Proceeding {
+    class: timer
+    label: |||md
+        Timer_E2
+        [event_only] -> retransmit
+    |||
+}
+Completed -> Completed_Consume {
+    class: next
+}
+Completed_Consume -> Completed_Consume {
+    class: event
+    label: |||md
+        SIP_1xx
+    |||
+}
+Completed_Consume -> Completed_Consume {
+    class: event
+    label: |||md
+        SIP_200_699
+    |||
+}
+Completed_Consume -> Completed_Consume {
+    class: event
+    label: |||md
+        TransportError
+    |||
+}
+Completed_Consume -> Terminated {
+    class: timer
+    label: |||md
+        Timer_K
+    |||
+}

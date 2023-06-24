@@ -13,9 +13,32 @@ namespace NiceStateMachineGenerator
     {
         public sealed class Settings
         {
-            public bool ShowStateEnterEvents { get; set; } = false;
-            public bool ShowEdgeTraverseEvents { get; set; } = false;
-            public bool ShowEdgeTraverseComments { get; set; } = false;
+            public bool AlwaysUseClassShape { get; set; } = false;
+            public string StartStateMark { get; set; } = "(start)";
+            public string FinalStateMark { get; set; } = "(final)";
+            public bool UseColors { get; set; } = true;
+
+            public bool ShowStateTimersOnOff { get; set; } = true;
+            public bool ShowStateEnterEvents { get; set; } = true;
+            public bool ShowEdgeTraverseEvents { get; set; } = true;
+            public bool ShowEdgeTraverseComments { get; set; } = true;
+
+            internal bool UseClassShapeForStates(StateMachineDescr stateMachine)
+            {
+                if (this.AlwaysUseClassShape)
+                {
+                    return true;
+                }
+                if (this.ShowStateTimersOnOff && stateMachine.Timers.Count > 0)
+                {
+                    return true;
+                }
+                if (this.ShowStateEnterEvents && stateMachine.States.Any(s => s.Value.NeedOnEnterEvent))
+                {
+                    return true;
+                }
+                return false;
+            }
         }
 
         public static void Export(StateMachineDescr stateMachine, string fileName, Settings settings)
@@ -36,6 +59,7 @@ namespace NiceStateMachineGenerator
 
         public static void Export(StateMachineDescr stateMachine, IndentedTextWriter writer, Settings settings)
         {
+            bool useClassShape = settings.UseClassShapeForStates(stateMachine);
             //classes
             {
                 writer.WriteLine("classes: {");
@@ -43,7 +67,14 @@ namespace NiceStateMachineGenerator
                 {
                     writer.WriteLine("state: {");
                     ++writer.Indent;
-                    writer.WriteLine("shape: rectangle");
+                    if (useClassShape)
+                    {
+                        writer.WriteLine("shape: class");
+                    }
+                    else
+                    {
+                        writer.WriteLine("shape: rectangle");
+                    }
                     writer.WriteLine("style.border-radius: 10");
                     --writer.Indent;
                     writer.WriteLine("}");
@@ -91,42 +122,59 @@ namespace NiceStateMachineGenerator
 
                     if (state.IsFinal)
                     {
-                        writer.WriteLine("style.double-border: true");
+                        if (!useClassShape)
+                        {
+                            writer.WriteLine("style.double-border: true"); 
+                        }
+                        else if (!String.IsNullOrWhiteSpace(settings.FinalStateMark))
+                        {
+                            //double border does not work on `class` shape, so we just change label
+                            writer.WriteLine($"label: {state.Name} {settings.FinalStateMark}");
+                        }
                     }
-                    if (state.Color != null)
+                    else if (state.Name == stateMachine.StartState && !String.IsNullOrWhiteSpace(settings.StartStateMark))
+                    {
+                        //in D2 start state is not always a topmost one, so it's nice to show it explicitly
+                        writer.WriteLine($"label: {state.Name} {settings.StartStateMark}");
+                    }
+
+                    if (state.Color != null && settings.UseColors)
                     {
                         writer.WriteLine($"style.stroke: {state.Color}");
                     }
 
-                    --writer.Indent;
-                    writer.WriteLine("}");
-
-                    /*TODO:
-                    writer.Write($" [shape = Mrecord; label = \"{{ {state.Name} ");
-                    foreach (string timer in state.StopTimers)
+                    if (settings.ShowStateTimersOnOff)
                     {
-                        writer.Write("| (-) ");
-                        writer.Write(timer);
-                    }
-                    foreach (TimerStartDescr timerStart in state.StartTimers.Values)
-                    {
-                        writer.Write("| (+) ");
-                        writer.Write(timerStart.TimerName);
-                        if (timerStart.Modify != null)
+                        foreach (string timer in state.StopTimers)
                         {
-                            writer.Write("*");
+                            writer.WriteLine($"-{timer}");
+                        }
+                        foreach (TimerStartDescr timerStart in state.StartTimers.Values)
+                        {
+                            if (timerStart.Modify != null)
+                            {
+                                writer.WriteLine($"+{timerStart.TimerName}: *");
+                            }
+                            else
+                            {
+                                writer.WriteLine($"+{timerStart.TimerName}");
+                            }
                         }
                     }
                     if (settings.ShowStateEnterEvents && state.NeedOnEnterEvent)
                     {
-                        writer.Write("| \\-\\> ");
                         if (state.OnEnterEventComment != null)
                         {
-                            writer.Write(state.OnEnterEventComment);
+                            writer.WriteLine($"\\#on_enter(): {state.OnEnterEventComment}");
+                        }
+                        else
+                        {
+                            writer.WriteLine("\\#on_enter()");
                         }
                     }
-                    */
+
                     --writer.Indent;
+                    writer.WriteLine("}");
                 };
                 
             }
@@ -169,10 +217,8 @@ namespace NiceStateMachineGenerator
 
         }
 
-        private static void WriteOnEnterEdge(TextWriter writer, StateDescr sourceState, EdgeTarget edgeTarget, string additionalComment, Settings settings)
+        private static void WriteOnEnterEdge(IndentedTextWriter writer, StateDescr sourceState, EdgeTarget edgeTarget, string additionalComment, Settings settings)
         {
-            //TODO:
-            /*
             if (edgeTarget.TargetType == EdgeTargetType.failure)
             {
                 return;
@@ -181,6 +227,10 @@ namespace NiceStateMachineGenerator
             {
                 return;
             };
+
+            writer.WriteLine($"{sourceState.Name} -> {edgeTarget.StateName ?? sourceState.Name} {{");
+            ++writer.Indent;
+            writer.WriteLine("class: event");
 
             string label = "[on_enter]";
             if (settings.ShowEdgeTraverseComments)
@@ -207,13 +257,10 @@ namespace NiceStateMachineGenerator
                     label += $" -> {comment}";
                 };
             };
-            writer.Write($"{sourceState.Name} -> {edgeTarget.StateName ?? sourceState.Name} [label = \"{label}\"]");
-            if (edgeTarget.TargetType == EdgeTargetType.no_change)
-            {
-                writer.Write("[style = dotted]");
-            }
-            writer.WriteLine(";");
-            */
+            writer.WriteLine($"label: {label}");
+
+            --writer.Indent;
+            writer.WriteLine("}");
         }
 
         private static void WriteEdge(IndentedTextWriter writer, StateDescr sourceState, EdgeDescr edgeDescr, EdgeTarget edgeTarget, string? additionalComment, Settings settings)
@@ -242,44 +289,59 @@ namespace NiceStateMachineGenerator
                 writer.WriteLine("class: event");
             }
 
-            if (edgeDescr.Color != null)
+            if (edgeDescr.Color != null && settings.UseColors)
             {
-                writer.WriteLine($"stroke: {edgeDescr.Color}");
+                writer.WriteLine($"style.stroke: {edgeDescr.Color}");
             }
 
+            writer.WriteLine("label: |||md"); //see https://d2lang.com/tour/text#standalone-text-is-markdown
+            ++writer.Indent;
+            {
+                writer.WriteLine(edgeDescr.InvokerName);
 
-            string label = edgeDescr.InvokerName;
-            /*TODO:
-            if (settings.ShowEdgeTraverseEvents && edgeDescr.OnTraverseEventTypes.Count > 0)
-            {
-                label += $"\n[{String.Join(", ", edgeDescr.OnTraverseEventTypes.Select(s => s.ToString()).OrderBy(s => s))}]";
-            };
-            if (settings.ShowEdgeTraverseComments)
-            {
-                string? comment;
-                if (edgeDescr.TraverseEventComment != null && additionalComment != null)
+                string? additionalLine = null;
+                if (settings.ShowEdgeTraverseEvents && edgeDescr.OnTraverseEventTypes.Count > 0)
                 {
-                    comment = $"{edgeDescr.TraverseEventComment} -> {additionalComment}";
-                }
-                else if (edgeDescr.TraverseEventComment != null)
-                {
-                    comment = edgeDescr.TraverseEventComment;
-                }
-                else if (additionalComment != null)
-                {
-                    comment = additionalComment;
-                }
-                else
-                {
-                    comment = null;
+                    additionalLine = $"[{String.Join(", ", edgeDescr.OnTraverseEventTypes.Select(s => s.ToString()).OrderBy(s => s))}]";
                 };
-                if (comment != null)
+                if (settings.ShowEdgeTraverseComments)
                 {
-                    label += $" -> {comment}";
+                    string? comment;
+                    if (edgeDescr.TraverseEventComment != null && additionalComment != null)
+                    {
+                        comment = $"{edgeDescr.TraverseEventComment} -> {additionalComment}";
+                    }
+                    else if (edgeDescr.TraverseEventComment != null)
+                    {
+                        comment = edgeDescr.TraverseEventComment;
+                    }
+                    else if (additionalComment != null)
+                    {
+                        comment = additionalComment;
+                    }
+                    else
+                    {
+                        comment = null;
+                    };
+                    if (comment != null)
+                    {
+                        if (additionalLine != null)
+                        {
+                            additionalLine += " -> " + comment;
+                        }
+                        else
+                        {
+                            additionalLine = "-> " + comment;
+                        }
+                    };
                 };
-            };
-            */
-            writer.WriteLine($"label: {label}");
+                if (additionalLine != null)
+                {
+                    writer.WriteLine(additionalLine);
+                }
+            }
+            --writer.Indent;
+            writer.WriteLine("|||");
 
 
             --writer.Indent;

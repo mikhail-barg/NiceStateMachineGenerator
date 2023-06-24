@@ -1,6 +1,6 @@
 classes: {
     state: {
-        shape: rectangle
+        shape: class
         style.border-radius: 10
     }
     event: {
@@ -18,58 +18,84 @@ classes: {
 
 in_call: {
     class: state
+    label: in_call (start)
 }
 session_termination_process: {
     class: state
+    \#on_enter(): sipCall.Stop()
 }
 awaiting_asr_fully_finalized: {
     class: state
+    +asr_timeout
+    \#on_enter(): asr.SendFinalized()
 }
 asr_fully_finalized: {
     class: state
+    -asr_timeout
+    \#on_enter(): stateMachine.OnExternalEvent(DialogTerminated)
 }
 early_termination: {
     class: state
+    \#on_enter(): warn
 }
 termination: {
     class: state
-    style.double-border: true
+    label: termination (final)
+    \#on_enter(): productionPlugin.WriteSessionToDb
 }
 in_call -> awaiting_asr_fully_finalized {
     class: event
-    label: telephony_session_terminated
+    label: |||md
+        telephony_session_terminated
+    |||
 }
 in_call -> session_termination_process {
     class: event
-    label: session_termination_request
+    label: |||md
+        session_termination_request
+    |||
 }
 in_call -> early_termination {
     class: event
-    label: script_final_state_reached
+    label: |||md
+        script_final_state_reached
+    |||
 }
 session_termination_process -> awaiting_asr_fully_finalized {
     class: event
-    label: telephony_session_terminated
+    label: |||md
+        telephony_session_terminated
+    |||
 }
 session_termination_process -> early_termination {
     class: event
-    label: script_final_state_reached
+    label: |||md
+        script_final_state_reached
+    |||
 }
 awaiting_asr_fully_finalized -> asr_fully_finalized {
     class: event
-    label: asr_fully_finalized
+    label: |||md
+        asr_fully_finalized
+    |||
 }
 awaiting_asr_fully_finalized -> early_termination {
     class: event
-    label: script_final_state_reached
+    label: |||md
+        script_final_state_reached
+    |||
 }
 awaiting_asr_fully_finalized -> asr_fully_finalized {
     class: timer
-    label: asr_timeout
+    label: |||md
+        asr_timeout
+    |||
 }
 asr_fully_finalized -> termination {
     class: event
-    label: script_final_state_reached
+    label: |||md
+        script_final_state_reached
+    |||
 }
 early_termination -> termination {
     class: next

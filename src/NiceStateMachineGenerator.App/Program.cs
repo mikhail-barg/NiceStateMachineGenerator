@@ -81,11 +81,19 @@ namespace NiceStateMachineGenerator.App
                         bool succeed = TryGenerateStateMachine(sourceFile, config);
                         if (succeed)
                         {
-                            Console.WriteLine($"Rendering Graphviz diagram at {eventArgs.FullPath}");
                             try
                             {
-                                RunGraphwiz(eventArgs.FullPath);
-                                Console.WriteLine("Render complete");
+                                if (config.run_dot)
+                                {
+                                    RunGraphwiz($"{eventArgs.FullPath}.dot");
+                                    Console.WriteLine("Graphwiz render complete");
+                                }
+
+                                if (config.run_d2)
+                                {
+                                    RunD2($"{eventArgs.FullPath}.d2", config);
+                                    Console.WriteLine("D2 render complete");
+                                }
                             }
                             catch (Exception e)
                             {
@@ -213,7 +221,7 @@ namespace NiceStateMachineGenerator.App
         private static void RunD2(string d2FileName, Config config)
         {
             Console.WriteLine("Executing D2");
-            using (Process gw = Process.Start("d2", $"-l {config.d2_layout} -t {config.d2_theme} {d2FileName} {d2FileName}.png"))
+            using (Process gw = Process.Start("d2", $"-l {config.d2_layout} -t {config.d2_theme} {d2FileName} {d2FileName}.svg"))
             {
                 gw.WaitForExit();
             }

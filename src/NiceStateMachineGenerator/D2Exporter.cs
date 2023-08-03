@@ -140,7 +140,7 @@ namespace NiceStateMachineGenerator
 
                     if (state.Color != null && settings.UseColors)
                     {
-                        writer.WriteLine($"style.stroke: {state.Color}");
+                        writer.WriteLine($"style.stroke: \"{state.Color}\"");
                     }
 
                     if (settings.ShowStateTimersOnOff)
@@ -291,8 +291,10 @@ namespace NiceStateMachineGenerator
 
             if (edgeDescr.Color != null && settings.UseColors)
             {
-                writer.WriteLine($"style.stroke: {edgeDescr.Color}");
+                writer.WriteLine($"style.stroke: \"{edgeDescr.Color}\"");
             }
+            
+            writer.WriteLine($"style.animated: true");
 
             writer.WriteLine("label: |||md"); //see https://d2lang.com/tour/text#standalone-text-is-markdown
             ++writer.Indent;

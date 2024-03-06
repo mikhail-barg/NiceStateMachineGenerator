@@ -190,10 +190,12 @@ namespace NiceStateMachineGenerator
                             {
                                 if (this.m_settings.AsyncCallbacks)
                                 {
-                                    this.m_mainCodeWriter.Write("await ");
+                                    this.m_mainCodeWriter.WriteLine($"await SetState({STATES_ENUM_NAME}.{state.NextStateName}).ConfigureAwait(false);");
                                 }
-
-                                this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{state.NextStateName}).ConfigureAwait(false);");
+                                else
+                                {
+                                    this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{state.NextStateName});");
+                                }
                             }
                             this.m_mainCodeWriter.WriteLine("break;");
                         }
@@ -431,9 +433,12 @@ namespace NiceStateMachineGenerator
                                         this.m_mainCodeWriter.WriteLine($"/*{subEdge.Key}*/");
                                         if (this.m_settings.AsyncCallbacks)
                                         {
-                                            this.m_mainCodeWriter.Write($"await ");
+                                            this.m_mainCodeWriter.WriteLine($"await SetState({STATES_ENUM_NAME}.{subEdge.Value.StateName}).ConfigureAwait(false);");
                                         }
-                                        this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{subEdge.Value.StateName}).ConfigureAwait(false);");
+                                        else
+                                        {
+                                            this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{subEdge.Value.StateName});");
+                                        }
                                         this.m_mainCodeWriter.WriteLine($"break;");
                                         --this.m_mainCodeWriter.Indent;
                                     }
@@ -467,7 +472,6 @@ namespace NiceStateMachineGenerator
                     }
                     else
                     {
-
                         this.m_mainCodeWriter.WriteLine($"SetState({STATES_ENUM_NAME}.{edge.Target.StateName});");
                     }
                     break;
@@ -836,7 +840,7 @@ namespace NiceStateMachineGenerator
                 && eventArgs != null
                 && eventArgs.Count > 0;
 
-            if (!m_settings.AsyncCallbacks)
+            if (!this.m_settings.AsyncCallbacks)
             {
                 bool isGeneric = needArgs || isFunction;
 

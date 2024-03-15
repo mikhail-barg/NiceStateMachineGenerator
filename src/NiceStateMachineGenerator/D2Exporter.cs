@@ -257,7 +257,11 @@ namespace NiceStateMachineGenerator
                     label += $" -> {comment}";
                 };
             };
-            writer.WriteLine($"label: {label}");
+            writer.WriteLine($"label: |||md");
+            writer.Indent++;
+            writer.WriteLine(label);
+            writer.Indent--;
+            writer.WriteLine($"|||");
 
             --writer.Indent;
             writer.WriteLine("}");

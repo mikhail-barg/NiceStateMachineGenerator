@@ -258,7 +258,9 @@ namespace NiceStateMachineGenerator
                 };
             };
             writer.WriteLine($"label: |||md");
+            writer.Indent++;
             writer.WriteLine(label);
+            writer.Indent--;
             writer.WriteLine($"|||");
 
             --writer.Indent;
